@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "imagepass"
+version = "0.1.0"
+description = "An encoder/decoder of passwords to images using steganography"
+authors = ["Pedro Ribeiro <pedromr21@gmail.com>"]
+readme = "README.md"
+
+[tool.black]
+line-length = 120
+skip-string-normalization = true
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pillow = "^10.4.0"
+numpy = "^2.1.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+pre-commit = "^3.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

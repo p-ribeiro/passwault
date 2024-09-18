@@ -1,0 +1,23 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+
+-   repo: https://github.com/psf/black
+    rev: 22.10.0
+    hooks:
+    -   id: black
+
+-   repo: https://github.com/PyCQA/isort
+    rev: 5.11.5
+    hooks:
+    - id: isort
+
+-   repo: https://github.com/twu/skjold
+    rev: v0.6.2
+    hooks:
+    - id: skjold
+      verbose: true  # Important if used with `report_only`, see below.
