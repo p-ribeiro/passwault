@@ -1,7 +1,6 @@
 import argparse
 
-from encoder import Encoder
-
+from .encoder import Encoder
 from .utils import verifier
 
 VALID_IMAGE_EXTENSIONS = ['.jpg', '.png', '.gif', '.jpeg', '.tiff', '.bmp']

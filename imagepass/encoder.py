@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from .utils.image_handler import ImageHandler
+
 
 class Encoder:
     def __init__(self, image_path: str, password: str) -> None:
@@ -8,4 +10,4 @@ class Encoder:
         ...
 
     def encode(self):
-        ...
+        image_handler = ImageHandler(self.image_path)
