@@ -1,5 +1,7 @@
-from typing import List, bytes
+from typing import List
 
 
-def int_to_bytes(int_list: List[int]) -> List[bytes]:
-    ...
+def int_to_bin(int_list: List[int]) -> List[str]:
+    bytes_list: List[bytes] = [bin(val) for val in int_list]
+    
+    return bytes_list

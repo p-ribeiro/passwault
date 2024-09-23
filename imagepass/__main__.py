@@ -7,6 +7,7 @@ VALID_IMAGE_EXTENSIONS = ['.jpg', '.png', '.gif', '.jpeg', '.tiff', '.bmp']
 
 
 def main():
+    print('hello')
     parser = argparse.ArgumentParser(
         prog="ImagePass",
         description="Insert an image path and a password to encode the password into the image",
@@ -20,7 +21,7 @@ def main():
         raise ValueError("ERROR: The path is not valid")
 
     if verifier.get_file_extension(args.image_path) not in VALID_IMAGE_EXTENSIONS:
-        raise ValueError(f"ERROR: not a valid image extension\nVALID EXTENSIONS: {" ".join(VALID_IMAGE_EXTENSIONS)}")
+        raise ValueError(f"ERROR: not a valid image extension\nVALID EXTENSIONS: {' '.join(VALID_IMAGE_EXTENSIONS)}")
 
     if args.option == "encode":
         if not args.password:
