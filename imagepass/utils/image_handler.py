@@ -35,3 +35,28 @@ class ImageHandler:
             band_values = im.getdata(self.bands[band])
 
         return list(band_values)
+
+    def replace_band(self, band: str, band_values: List[int]):
+       
+        with Image.open(self.image_path) as im:
+            bands = im.split()
+       
+        modified_band_image = Image.new('L', (self.width, self.height))
+        modified_band_image.putdata(band_values)
+        
+        match band:
+            case "R":
+                modified_image = Image.merge("RGB", (modified_band_image, bands[1], bands[2] ))
+            case "G":
+                modified_image = Image.merge("RGB", (bands[0], modified_band_image, bands[2] ))
+            case "B":
+                modified_image = Image.merge("RGB", (bands[0], bands[1], modified_band_image))
+            case "A":
+                modified_image = Image.merge("RGBA", (bands[0], bands[1], bands[2], modified_band_image ))
+         
+       
+       
+        modified_image.save("results/its_fine.png")
+       
+       
+       
