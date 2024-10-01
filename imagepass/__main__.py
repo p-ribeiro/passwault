@@ -28,8 +28,8 @@ def main():
             raise ValueError("ERROR: You need to insert the password that will be encoded\n")
 
         Embedder(args.image_path, args.password).encode()
-        
-        Embedder("C:\\Users\\pedro\\Programming\\imagepass-project\\results\\its_fine.png", args.password).decode()
+    else:
+        Embedder(args.image_path).decode()
 
 
 if __name__ == "__main__":

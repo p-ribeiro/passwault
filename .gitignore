@@ -1,5 +1,10 @@
 __pycache__/
-images/
 .vscode/
 .venv/
 *.pyc
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.tiff
+*.bmp

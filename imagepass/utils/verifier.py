@@ -2,6 +2,7 @@ from pathlib import Path
 
 
 def verify_image_path(image_path: str):
+    print(image_path)
     is_file = Path(image_path).is_file()
 
     return is_file
