@@ -1,6 +1,6 @@
 import argparse
 
-from .encoder import Encoder
+from .embedder import Embedder
 from .utils import verifier
 
 VALID_IMAGE_EXTENSIONS = ['.jpg', '.png', '.gif', '.jpeg', '.tiff', '.bmp']
@@ -27,7 +27,9 @@ def main():
         if not args.password:
             raise ValueError("ERROR: You need to insert the password that will be encoded\n")
 
-        Encoder(args.image_path, args.password).encode()
+        Embedder(args.image_path, args.password).encode()
+        
+        Embedder("C:\\Users\\pedro\\Programming\\imagepass-project\\results\\its_fine.png", args.password).decode()
 
 
 if __name__ == "__main__":
