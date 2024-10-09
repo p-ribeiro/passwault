@@ -1,13 +1,13 @@
 import argparse
-
+from pathlib import Path
 from .embedder import Embedder
 from .utils import verifier
+
 
 VALID_IMAGE_EXTENSIONS = ['.jpg', '.png', '.gif', '.jpeg', '.tiff', '.bmp']
 
 
 def main():
-    print('hello')
     parser = argparse.ArgumentParser(
         prog="ImagePass",
         description="Insert an image path and a password to encode the password into the image",
@@ -21,12 +21,11 @@ def main():
         raise ValueError("ERROR: The path is not valid")
 
     if verifier.get_file_extension(args.image_path) not in VALID_IMAGE_EXTENSIONS:
-        raise ValueError(f"ERROR: not a valid image extension\nVALID EXTENSIONS: {' '.join(VALID_IMAGE_EXTENSIONS)}")
+        raise ValueError(f"ERROR: not a valid image extension. VALID EXTENSIONS: {' '.join(VALID_IMAGE_EXTENSIONS)}")
 
     if args.option == "encode":
         if not args.password:
-            raise ValueError("ERROR: You need to insert the password that will be encoded\n")
-
+            raise ValueError("ERROR: You need to insert the password that will be encoded")
         Embedder(args.image_path, args.password).encode()
     else:
         Embedder(args.image_path).decode()
