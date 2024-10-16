@@ -13,6 +13,7 @@ skip-string-normalization = true
 python = "^3.11"
 pillow = "^10.4.0"
 numpy = "^2.1.1"
+pytest = "^8.3.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
