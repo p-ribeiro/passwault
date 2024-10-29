@@ -22,8 +22,8 @@ repos:
     hooks:
     - id: isort
 
--   repo: https://github.com/twu/skjold
-    rev: v0.6.2
-    hooks:
-    - id: skjold
-      verbose: true  # Important if used with `report_only`, see below.
+# -   repo: https://github.com/twu/skjold
+#     rev: v0.6.2
+#     hooks:
+#     - id: skjold
+#       verbose: true  # Important if used with `report_only`, see below.

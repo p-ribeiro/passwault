@@ -102,9 +102,10 @@ class Embedder:
                 if len(last_byte) == 8:
                     result += chr(int(last_byte, 2))
                     last_byte = ""
-                if len(result) == 15:  # Temp solution
+                if len(result) == 15:  # TODO: put a eol signal so I know when the password stops
                     return result
             else:
+                # TODO: Fix this mess
                 if len(last_byte) == 8:
                     if int(last_byte, 2) == 3:
                         password = True
