@@ -7,6 +7,7 @@ from PIL import Image
 class ImageHandler:
     def __init__(self, image_path: Path) -> None:
         self.image_path: Path = image_path
+        self.image_name: str = image_path.stem
         self.width, self.height = self._get_image_dimensions()
         self.bands: dict[str, int] = self._get_image_bands()
         self.size = self.width * self.height
@@ -44,14 +45,20 @@ class ImageHandler:
         modified_band_image = Image.new('L', (self.width, self.height))
         modified_band_image.putdata(band_values)
 
-        match band:
-            case "R":
-                modified_image = Image.merge("RGB", (modified_band_image, bands[1], bands[2]))
-            case "G":
-                modified_image = Image.merge("RGB", (bands[0], modified_band_image, bands[2]))
-            case "B":
-                modified_image = Image.merge("RGB", (bands[0], bands[1], modified_band_image))
-            case "A":
-                modified_image = Image.merge("RGBA", (bands[0], bands[1], bands[2], modified_band_image))
+        print(list(modified_band_image.getdata())[:8])  # Print first 10 pixels
 
-        modified_image.save("results/its_fine.png")
+        try:
+            match band:
+                case "R":
+                    modified_image = Image.merge("RGB", (modified_band_image, bands[1], bands[2]))
+                case "G":
+                    modified_image = Image.merge("RGB", (bands[0], modified_band_image, bands[2]))
+                case "B":
+                    modified_image = Image.merge("RGB", (bands[0], bands[1], modified_band_image))
+                case "A":
+                    modified_image = Image.merge("RGBA", (bands[0], bands[1], bands[2], modified_band_image))
+
+            modified_image.save(f"results/enc_{self.image_name}.png", format="PNG")
+
+        except Exception as e:
+            print(e)

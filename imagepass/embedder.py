@@ -7,40 +7,47 @@ from imagepass.utils.utils import password_generator
 
 from .utils.image_handler import ImageHandler
 
+START_OF_HEADER = chr(1)
+START_OF_MESSAGE = chr(2)
+END_OF_MESSAGE = chr(3)
+BYTE_SIZE = 8
+
 
 class Embedder:
     def __init__(self, image_path: str, password: str | None = None) -> None:
         self.image_path = Path(image_path)
         self.password = password
-        ...
 
     def _create_header(self, bands: list[str], key: str) -> str:
 
         # header format
         # <band>[-<band>]|<key>
+
         header = "-".join(bands) + "|" + key
-        return chr(2) + base64.b64encode(header.encode()).decode('ascii') + chr(3)
+
+        return START_OF_HEADER + base64.b64encode(header.encode()).decode('ascii')
 
     def _get_header(self, band_values: List[int]) -> str | None:
         def _chunks_of_eight(lst: List[int]):
             for i in range(0, len(lst), 8):
                 yield lst[i : i + 8]
 
-        start = True
+        starting_byte = True
         header = ""
         for bytes in _chunks_of_eight(band_values):
-            byte_value = "".join([str(byte & 1) for byte in bytes])
-            byte_int = int(byte_value, 2)
-            if start:
-                if byte_int != 2:
+            encoded_byte = "".join([str(byte & 1) for byte in bytes])
+            encoded_byte_chr = chr(int(encoded_byte, 2))
+
+            if starting_byte:
+                if encoded_byte_chr != START_OF_HEADER:
                     return None
-                start = False
+                starting_byte = False
                 continue
 
-            if byte_int == 3:
+            if encoded_byte_chr == START_OF_MESSAGE:
                 return header
 
-            header += chr(byte_int)
+            header += encoded_byte_chr
 
     @staticmethod
     def _key_spacing_generator(key: str):
@@ -50,8 +57,8 @@ class Embedder:
             yield ord(key[cnt % key_size])
             cnt += 1
 
-    def _embed_message_lsb(self, source_bytes: bytes, target_bytes: List[int], key: str) -> None:
-        """Embed each bit of `source_bytes` into the least significant bit (LSB) of `target_bytes` in-place.
+    def _insert_message_lsb(self, source_bytes: bytes, target_bytes: List[int], key: str) -> None:
+        """In-place embedding of each bit of `source_bytes` into the least significant bit (LSB) of `target_bytes`.
 
         Args:
             source_bytes (bytes): the bytes to be embedded into the target.
@@ -59,7 +66,7 @@ class Embedder:
         """
 
         target_lenght = len(target_bytes)
-        source_bit_idx = 0
+        bit_idx = 0
         last_byte = ""
         header = True
         keyed_spacer = self._key_spacing_generator(key)
@@ -69,50 +76,50 @@ class Embedder:
                 bit = byte >> bit_pos & 1
                 last_byte += str(bit)
 
-                if source_bit_idx < target_lenght:
+                if bit_idx < target_lenght:
 
                     if bit:
-                        target_bytes[source_bit_idx] |= 1  # set LSB to 1
+                        target_bytes[bit_idx] |= 1  # set LSB to 1
                     else:
-                        target_bytes[source_bit_idx] &= ~1  # clear LSB to 0
+                        target_bytes[bit_idx] &= ~1  # clear LSB to 0
 
-                if len(last_byte) == 8:
-                    if int(last_byte, 2) == 3:
+                if len(last_byte) == BYTE_SIZE:
+                    if chr(int(last_byte, 2)) == START_OF_MESSAGE:
                         header = False
                     last_byte = ""
 
                 if header:
-                    source_bit_idx += 1
+                    bit_idx += 1
                 else:
-                    source_bit_idx += next(keyed_spacer)
+                    bit_idx += next(keyed_spacer)
 
     def _retrieve_message_lsb(self, source_bytes: List[int], key: str) -> None:
 
         keyed_spacer = self._key_spacing_generator(key)
-        password = False
+        is_message = False
         source_bit_idx = 0
-        last_byte = ""
+        decoded_byte = ""
         result = ""
         while source_bit_idx < len(source_bytes):
             bit = source_bytes[source_bit_idx] & 1
-            last_byte += str(bit)
+            decoded_byte += str(bit)
 
-            if password:
+            if is_message:
                 source_bit_idx += next(keyed_spacer)
-                if len(last_byte) == 8:
-                    result += chr(int(last_byte, 2))
-                    last_byte = ""
-                if len(result) == 15:  # TODO: put a eol signal so I know when the password stops
-                    return result
+                if len(decoded_byte) == BYTE_SIZE:
+                    decoded_byte_chr = chr(int(decoded_byte, 2))
+                    if decoded_byte_chr == END_OF_MESSAGE:
+                        return result
+                    result += decoded_byte_chr
+                    decoded_byte = ""
             else:
-                # TODO: Fix this mess
-                if len(last_byte) == 8:
-                    if int(last_byte, 2) == 3:
-                        password = True
+                if len(decoded_byte) == BYTE_SIZE:
+                    if chr(int(decoded_byte, 2)) == START_OF_MESSAGE:
+                        is_message = True
                         source_bit_idx += next(keyed_spacer)
-                        last_byte = ""
+                        decoded_byte = ""
                         continue
-                    last_byte = ""
+                    decoded_byte = ""
                 source_bit_idx += 1
 
     def decode(self):
@@ -136,11 +143,13 @@ class Embedder:
             # but the band is chosen at random
             band = choice(list(image_handler.bands.keys()))
             band_values[band] = image_handler.get_band_values(band)
+
             key = password_generator(10, True, True, True)
 
-            message = self._create_header([band], key) + self.password
+            header = self._create_header([band], key)
+            message = header + START_OF_MESSAGE + self.password + END_OF_MESSAGE
 
-            self._embed_message_lsb(message.encode(), band_values[band], key)
+            self._insert_message_lsb(message.encode(), band_values[band], key)
             print(band)
             print(band_values[band][:8])
 
