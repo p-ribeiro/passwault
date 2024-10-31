@@ -1,9 +1,9 @@
 import os
 
-from login import login, register
-from password_ops import load_pw, save_pw
-
 from vault.core.utils.database import init_db
+
+from .authenticator import login, register
+from .password_ops import load_pw, save_pw
 
 
 def start():
@@ -23,7 +23,7 @@ def start():
         elif action == "login":
             username = input("Enter Username: ")
             password = input("Enter Password: ")
-            login(username, password)
+            login(username, password, logged_in)
             break
 
         elif action == "exit":

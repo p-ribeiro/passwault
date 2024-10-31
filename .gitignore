@@ -9,3 +9,6 @@ __pycache__/
 *.tiff
 *.bmp
 *.db
+
+htmlcov/
+.coverage
