@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "An encoder/decoder of passwords to images using steganography"
 authors = ["Pedro Ribeiro <pedromr21@gmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.black]
 line-length = 120
@@ -16,6 +17,7 @@ numpy = "^2.1.1"
 bcrypt = "^4.2.0"
 pytest = "^8.3.3"
 pytest-cov = "^6.0.0"
+pytest-mock = "^3.14.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"

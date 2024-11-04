@@ -1,9 +1,8 @@
 import os
 
+from vault.core.authenticator import login, register
+from vault.core.password_ops import load_pw, save_pw
 from vault.core.utils.database import init_db
-
-from .authenticator import login, register
-from .password_ops import load_pw, save_pw
 
 
 def start():

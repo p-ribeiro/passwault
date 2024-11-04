@@ -14,28 +14,28 @@ def get_connection(db="passwalt.db") -> sqlite3.Connection:
 
 
 def init_db():
+    print("test")
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        """
+
+    query_create_users = """
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL
         )"""
-    )
-    cursor.execute(
-        """
+    query_create_passwords = """
         CREATE TABLE IF NOT EXISTS passwords (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             password_name TEXT NOT NULL,
             password TEXT NOT NULL,
             user_id INTEGER NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-        )
-    """
-    )
+        )"""
+
+    cursor.execute(query_create_users)
+    cursor.execute(query_create_passwords)
 
     conn.commit()
     conn.close()
