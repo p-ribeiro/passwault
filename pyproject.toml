@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "An encoder/decoder of passwords to images using steganography"
 authors = ["Pedro Ribeiro <pedromr21@gmail.com>"]
 readme = "README.md"
-package-mode = false
+package-mode = true
 
 [tool.black]
 line-length = 120

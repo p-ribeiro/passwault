@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 from pytest_mock import MockerFixture
 
-from vault.core.authenticator import login, register
+from passwault.core.commands.authenticator import login, register
 
 
 def test_register_success(mocker: MockerFixture):
@@ -28,7 +28,7 @@ def test_register_failure(mocker: MockerFixture):
 
 
 def test_login_success(mocker: MockerFixture):
-    mock_authenticate = mocker.patch('vault.core.authenticator.authenticate', return_value=21)
+    mock_authenticate = mocker.patch('vault.core.authenticator.authentication', return_value=21)
 
     mock_callback = Mock()
 
@@ -39,7 +39,9 @@ def test_login_success(mocker: MockerFixture):
 
 
 def test_login_failure(mocker: MockerFixture):
-    mock_authenticate = mocker.patch('vault.core.authenticator.authenticate', return_value="Error with authentication")
+    mock_authenticate = mocker.patch(
+        'vault.core.authenticator.authentication', return_value="Error with authentication"
+    )
     mock_logger_error = mocker.patch('vault.core.utils.logger.Logger.error')
     mock_callback = Mock()
 

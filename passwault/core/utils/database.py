@@ -14,7 +14,6 @@ def get_connection(db="passwalt.db") -> sqlite3.Connection:
 
 
 def init_db():
-    print("test")
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -43,6 +42,7 @@ def init_db():
 
 def add_user(username: str, password: str, role: str) -> str | None:
 
+    print('in add user')
     if role.lower() not in ROLES:
         return "This role is invalid"
 
@@ -57,6 +57,7 @@ def add_user(username: str, password: str, role: str) -> str | None:
         cursor = conn.cursor()
         cursor.execute(query, (username, password_hash, ROLES[role.lower()]))
         conn.commit()
+        print('inserted')
     except sqlite3.IntegrityError as ie:
         return f"User already exists"
     except Exception as e:
@@ -67,7 +68,7 @@ def add_user(username: str, password: str, role: str) -> str | None:
     return None
 
 
-def authenticate(username: str, password: str) -> str | int:
+def authentication(username: str, password: str) -> str | int:
 
     query = f"""
         SELECT user_id, password_hash FROM users WHERE username=?
@@ -91,7 +92,7 @@ def authenticate(username: str, password: str) -> str | int:
         else:
             return "Authentication failed"
     except Exception as e:
-        return f"Error found while autheticating user: {e}"
+        return f"Error found while authenticating user: {e}"
     finally:
         conn.close()
 
@@ -104,7 +105,7 @@ def authorization(username: str, required_role: str) -> str | None:
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(query, username)
+    cursor.execute(query, (username,))
     user = cursor.fetchone()
     conn.close()
 
@@ -123,24 +124,45 @@ def get_user_id(username: str) -> int | str:
     conn = get_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT user_id FROM users WHERE username=?", (username))
-        user_id: int = cursor.fetchone()[0]
+        cursor.execute("SELECT user_id FROM users WHERE username=?", (username,))
+        user_id: int = cursor.fetchone()
+
+        if user_id:
+            return user_id
+        else:
+            return "User not found"
+
     except Exception as e:
         return f"Error getting user_id: {e}"
     finally:
         conn.close()
 
-    return user_id
 
-
-def save_password(user_id: str, password: str, password_name: str) -> str | None:
+def get_role(username: str):
     conn = get_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            "INSERT INTO passwords (password_name, password, user_id) VALUES (?,?,?)",
-            (password_name, password, user_id),
-        )
+        cursor.execute("SELECT role FROM users WHERE username=?", (username,))
+        user_role: str = cursor.fetchone()
+
+        if user_role:
+            return user_role
+        else:
+            return "User not found"
+
+    except Exception as e:
+        return f"Error getting user_role: {e}"
+    finally:
+        conn.close()
+
+
+def save_password(user_id: int, password: str, password_name: str) -> str | None:
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    query = "INSERT INTO passwords (password_name, password, user_id) VALUES (?,?,?)"
+    try:
+        cursor.execute(query, (password_name, password, user_id))
         conn.commit()
     except Exception as e:
         return f"Error while saving password: {e}"
@@ -153,13 +175,17 @@ def get_password(user_id: str, password_name: str) -> str:
 
     conn = get_connection()
     cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT password FROM passwords WHERE password_name=? AND user_id=?", (password_name, user_id))
 
-        password: str = cursor.fetchone()[0]
+    query = "SELECT password FROM passwords WHERE password_name=? AND user_id=?"
+    try:
+        cursor.execute(query, (password_name, user_id))
+        password: str = cursor.fetchone()
+
+        if password:
+            return password
+        else:
+            return "Password not found"
     except Exception as e:
         return f"Error while retrieving password: {e}"
     finally:
         conn.close()
-
-    return password

@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 from pytest import MonkeyPatch
 
-from vault.core import authenticator
-from vault.core.cli import logged_in, start
+from passwault.core.cli import logged_in, start
+from passwault.core.commands import authenticator
 
 
 def test_start_register(monkeypatch: MonkeyPatch) -> None:

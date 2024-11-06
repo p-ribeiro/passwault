@@ -1,10 +1,10 @@
 from pytest_mock import MockerFixture
 
-from vault.core.password_ops import load_pw, save_pw
+from passwault.core.commands.password_helper import load_pw, save_pw
 
 
 def test_save_pw_success(mocker: MockerFixture):
-    mocked_saved_password = mocker.patch('vault.core.password_ops.save_password', return_value=None)
+    mocked_saved_password = mocker.patch('vault.core.password_helper.save_password', return_value=None)
     mocked_logger_info = mocker.patch('vault.core.utils.logger.Logger.info')
     mocked_logger_error = mocker.patch('vault.core.utils.logger.Logger.error')
 
@@ -16,7 +16,9 @@ def test_save_pw_success(mocker: MockerFixture):
 
 
 def test_save_pw_failure(mocker: MockerFixture):
-    mocked_saved_password = mocker.patch('vault.core.password_ops.save_password', return_value="Error saving password")
+    mocked_saved_password = mocker.patch(
+        'vault.core.password_helper.save_password', return_value="Error saving password"
+    )
     mocked_logger_info = mocker.patch('vault.core.utils.logger.Logger.info')
     mocked_logger_error = mocker.patch('vault.core.utils.logger.Logger.error')
 
@@ -28,7 +30,7 @@ def test_save_pw_failure(mocker: MockerFixture):
 
 
 def test_load_pw_success(mocker: MockerFixture, capfd):
-    mocked_get_password = mocker.patch('vault.core.password_ops.get_password', return_value="my_password")
+    mocked_get_password = mocker.patch('vault.core.password_helper.get_password', return_value="my_password")
     mocked_logger_error = mocker.patch('vault.core.utils.logger.Logger.error')
 
     load_pw(21, 'password_identifier')
@@ -42,7 +44,7 @@ def test_load_pw_success(mocker: MockerFixture, capfd):
 
 
 def test_load_pw_failure(mocker: MockerFixture):
-    mocked_get_password = mocker.patch('vault.core.password_ops.get_password', return_value="Error getting password")
+    mocked_get_password = mocker.patch('vault.core.password_helper.get_password', return_value="Error getting password")
     mocked_logger_error = mocker.patch('vault.core.utils.logger.Logger.error')
 
     load_pw(21, 'password_identifier')
