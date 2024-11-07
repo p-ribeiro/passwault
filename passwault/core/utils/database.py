@@ -1,8 +1,8 @@
 import sqlite3
-from enum import Enum
-from typing import Tuple
 
 import bcrypt
+
+from passwault.core.utils.local_types import Response
 
 ROLES = {"admin": 1, "user": 2}
 
@@ -40,11 +40,10 @@ def init_db():
     conn.close()
 
 
-def add_user(username: str, password: str, role: str) -> str | None:
+def add_user(username: str, password: str, role: str) -> Response:
 
-    print('in add user')
     if role.lower() not in ROLES:
-        return "This role is invalid"
+        return Response(False, "This role is invalid")
 
     password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
@@ -57,18 +56,17 @@ def add_user(username: str, password: str, role: str) -> str | None:
         cursor = conn.cursor()
         cursor.execute(query, (username, password_hash, ROLES[role.lower()]))
         conn.commit()
-        print('inserted')
     except sqlite3.IntegrityError as ie:
-        return f"User already exists"
+        return Response(False, f"User already exists")
     except Exception as e:
-        return f"Error during insertion: {str(e)}"
+        return Response(False, f"Error during insertion: {str(e)}")
     finally:
         conn.close()
 
-    return None
+    return Response(True, None)
 
 
-def authentication(username: str, password: str) -> str | int:
+def authentication(username: str, password: str) -> Response:
 
     query = f"""
         SELECT user_id, password_hash FROM users WHERE username=?
@@ -82,22 +80,22 @@ def authentication(username: str, password: str) -> str | int:
         user = cursor.fetchone()
 
         if user is None:
-            return "User not found"
+            return Response(False, "User not found")
 
         user_id: int = user[0]
         password_hash: str = user[1]
 
         if bcrypt.checkpw(password.encode('utf-8'), password_hash):
-            return user_id
+            return Response(True, user_id)
         else:
-            return "Authentication failed"
+            return Response(False, "Authentication failed")
     except Exception as e:
-        return f"Error found while authenticating user: {e}"
+        return Response(False, f"Error found while authenticating user: {e}")
     finally:
         conn.close()
 
 
-def authorization(username: str, required_role: str) -> str | None:
+def authorization(username: str, required_role: str) -> Response:
 
     query = f"""
         SELECT role FROM users WHERE username=?
@@ -110,17 +108,17 @@ def authorization(username: str, required_role: str) -> str | None:
     conn.close()
 
     if user is None:
-        return "User not found"
+        return (False, "User not found")
 
     user_role = user[0]
 
     if required_role.lower() == user_role:
-        return None
+        return Response(True, None)
     else:
-        return "Not authorized"
+        return Response(False, "Not authorized")
 
 
-def get_user_id(username: str) -> int | str:
+def get_user_id(username: str) -> Response:
     conn = get_connection()
     cursor = conn.cursor()
     try:
@@ -128,35 +126,35 @@ def get_user_id(username: str) -> int | str:
         user_id: int = cursor.fetchone()
 
         if user_id:
-            return user_id
+            return Response(True, user_id[0])
         else:
-            return "User not found"
+            return Response(False, "User not found")
 
     except Exception as e:
-        return f"Error getting user_id: {e}"
+        return Response(False, f"Error getting user_id: {e}")
     finally:
         conn.close()
 
 
-def get_role(username: str):
+def get_role(username: str) -> Response:
     conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT role FROM users WHERE username=?", (username,))
-        user_role: str = cursor.fetchone()
+        user_role: int = cursor.fetchone()
 
         if user_role:
-            return user_role
+            return Response(True, user_role[0])
         else:
-            return "User not found"
+            return Response(False, "User not found")
 
     except Exception as e:
-        return f"Error getting user_role: {e}"
+        return Response(False, f"Error getting user_role: {e}")
     finally:
         conn.close()
 
 
-def save_password(user_id: int, password: str, password_name: str) -> str | None:
+def save_password(user_id: int, password: str, password_name: str) -> Response:
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -165,13 +163,13 @@ def save_password(user_id: int, password: str, password_name: str) -> str | None
         cursor.execute(query, (password_name, password, user_id))
         conn.commit()
     except Exception as e:
-        return f"Error while saving password: {e}"
+        return Response(False, f"Error while saving password: {e}")
     finally:
         conn.close()
-    return None
+    return Response(True, None)
 
 
-def get_password(user_id: str, password_name: str) -> str:
+def get_password(user_id: str, password_name: str) -> Response:
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -182,10 +180,10 @@ def get_password(user_id: str, password_name: str) -> str:
         password: str = cursor.fetchone()
 
         if password:
-            return password
+            return Response(True, password[0])
         else:
-            return "Password not found"
+            return Response(False, "Password not found")
     except Exception as e:
-        return f"Error while retrieving password: {e}"
+        return Response(False, f"Error while retrieving password: {e}")
     finally:
         conn.close()

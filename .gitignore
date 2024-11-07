@@ -14,3 +14,4 @@ htmlcov/
 .coverage
 coverage.json
 .pytest_cache/
+.session
