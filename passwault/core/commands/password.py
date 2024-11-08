@@ -1,18 +1,27 @@
 import re
+from pathlib import Path
 from random import choice
 
 from passwault.core.utils.database import get_password, save_password
+from passwault.core.utils.file_handler import read_file, valid_file
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager
 
 
-def save_pw(password: str, password_name: str, session_manager: SessionManager):
+def save_pw(password: str, password_name: str, file: str, session_manager: SessionManager):
     if not session_manager.is_logged_in():
         Logger.info("User is not logged in")
         return
 
     session = session_manager.get_session()
     user_id = session["id"]
+
+    if file:
+        password_names, passwords = read_file(file)
+        print('received a file')
+    if (password_name and password is None) or (password and password_name is None):
+        Logger.error("You should insert a password with a password_name")
+        return
 
     response = save_password(user_id, password, password_name)
     if not response.ok:
