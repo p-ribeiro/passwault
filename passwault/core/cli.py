@@ -3,7 +3,10 @@ from json import load
 
 from passwault.core.commands.authenticator import login, logout, register
 from passwault.core.commands.password import generate_pw, load_pw, save_pw
+from passwault.core.utils import session_manager
 from passwault.core.utils.database import init_db
+from passwault.core.utils.file_handler import valid_file
+from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager
 
 session = {"logged_in": False}
@@ -45,7 +48,8 @@ def cli():
     save_password_parser = subparsers.add_parser("save_password", help="Saves a new password to database")
     save_password_parser.add_argument("-p", "--password", type=str, help="the password to be saved")
     save_password_parser.add_argument("-n", "--password-name", type=str, help="the value identify the password")
-    save_password_parser.set_defaults(func=lambda args: save_pw(args.password, args.password_name, session_manager))
+    save_password_parser.add_argument("-f", "--file", type=valid_file, help="the file with the list of passswords")
+    save_password_parser.set_defaults(func=lambda args: save_pw(args.password, args.password_name, args.file, session_manager))
 
     # load_password subcommand
     load_password_parser = subparsers.add_parser("load_password", help="Gets the password from database")
