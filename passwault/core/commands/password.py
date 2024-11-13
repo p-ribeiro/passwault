@@ -17,12 +17,22 @@ def save_pw(password: str, password_name: str, file: str, session_manager: Sessi
     user_id = session["id"]
 
     if file:
-        password_names, passwords = read_file(file)
-        print('received a file')
+        pw_pairs = read_file(file)
+        if pw_pairs is None:
+            Logger.error("TBD error invalid file")
+            return
+        
+        for pw_name, pw in pw_pairs:
+            save_password(user_id, pw, pw_name)
+        
+        Logger.info("Successfully imported the password file")
+        return
+        
+        
     if (password_name and password is None) or (password and password_name is None):
         Logger.error("You should insert a password with a password_name")
         return
-
+    
     response = save_password(user_id, password, password_name)
     if not response.ok:
         Logger.error(response.result)
