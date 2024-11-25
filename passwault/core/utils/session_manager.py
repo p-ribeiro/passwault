@@ -1,7 +1,31 @@
 import json
 from datetime import datetime, timedelta
+from functools import wraps
+from multiprocessing import Value
 from os import path
 from pathlib import Path
+
+from passwault.core.utils.logger import Logger
+
+
+def check_session(func):
+    @wraps(func)
+    def decorator(*args, **kwargs):
+        if not args:
+            raise ValueError("No positon arguments provided, session is missing")
+
+        session = args[-1]
+
+        if not isinstance(session, SessionManager):
+            raise TypeError("Last object is not a session object")
+
+        if not session.is_logged_in():
+            Logger.info("User is not logged in")
+            return
+
+        func(*args, **kwargs)
+
+    return decorator
 
 
 class SessionManager:
@@ -42,8 +66,3 @@ class SessionManager:
                 time_difference = datetime.now() - datetime.fromisoformat(session["time"])
                 if time_difference >= timedelta(minutes=10):
                     self.logout()
-
-
-if __name__ == "__main__":
-    sm = SessionManager()
-    print(sm.root_path)

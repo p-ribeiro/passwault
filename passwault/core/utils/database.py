@@ -1,7 +1,9 @@
 import sqlite3
+from ast import List
 
 import bcrypt
 
+import passwault
 from passwault.core.utils.local_types import Response
 
 ROLES = {"admin": 1, "user": 2}
@@ -185,5 +187,23 @@ def get_password(user_id: str, password_name: str) -> Response:
             return Response(False, "Password not found")
     except Exception as e:
         return Response(False, f"Error while retrieving password: {e}")
+    finally:
+        conn.close()
+
+
+def get_all_passwords(user_id: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    query = "SELECT password_name, password FROM passwords WHERE user_id=?"
+    try:
+        cursor.execute(query, (user_id,))
+        passwords: List = cursor.fetchall()
+        if len(passwords) > 0:
+            return Response(True, passwords)
+        else:
+            return Response(True, f"There is not password for user: {user_id}")
+    except Exception as e:
+        return Response(False, f"Error while retrieving all passwords: {e}")
     finally:
         conn.close()

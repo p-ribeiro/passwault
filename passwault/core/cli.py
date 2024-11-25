@@ -1,6 +1,8 @@
 import argparse
 from json import load
 
+from numpy import require
+
 from passwault.core.commands.authenticator import login, logout, register
 from passwault.core.commands.password import generate_pw, load_pw, save_pw
 from passwault.core.utils import session_manager
@@ -21,15 +23,15 @@ def cli():
 
     # register subcommand
     register_parser = subparsers.add_parser("register", help="register a new user")
-    register_parser.add_argument("-u", "--username", type=str, help="your username")
-    register_parser.add_argument("-p", "--password", type=str, help="your password")
-    register_parser.add_argument("-r", "--role", type=str, help="your role")
+    register_parser.add_argument("-u", "--username", type=str, required=True, help="your username")
+    register_parser.add_argument("-p", "--password", type=str, required=True, help="your password")
+    register_parser.add_argument("-r", "--role", required=True, type=str, help="your role")
     register_parser.set_defaults(func=lambda args: register(args.username, args.password, args.role))
 
     # login subcommand
     login_parser = subparsers.add_parser("login", help="login into the system")
-    login_parser.add_argument("-u", "--username", type=str, help="your username")
-    login_parser.add_argument("-p", "--password", type=str, help="your password")
+    login_parser.add_argument("-u", "--username", type=str, required=True, help="your username")
+    login_parser.add_argument("-p", "--password", type=str, required=True, help="your password")
     login_parser.set_defaults(func=lambda args: login(args.username, args.password, session_manager))
 
     # logout subcommand
@@ -41,8 +43,8 @@ def cli():
     generate_parser.add_argument("-s", action="store_true", help="the password must have symbols")
     generate_parser.add_argument("-d", action="store_true", help="the password must have digits")
     generate_parser.add_argument("-u", action="store_true", help="the password must have uppercases")
-    generate_parser.add_argument("-l", default=10, help="the password length", metavar="LENGTH")
-    generate_parser.set_defaults(func=lambda args: generate_pw(args.length, args.s, args.d, args.u))
+    generate_parser.add_argument("-l", default=10, type=int, help="the password length", metavar="LENGTH")
+    generate_parser.set_defaults(func=lambda args: generate_pw(args.l, args.s, args.d, args.u))
 
     # save_password subcommand
     save_password_parser = subparsers.add_parser("save_password", help="Saves a new password to database")
@@ -54,7 +56,8 @@ def cli():
     # load_password subcommand
     load_password_parser = subparsers.add_parser("load_password", help="Gets the password from database")
     load_password_parser.add_argument("-n", "--password-name", type=str, help="the password identifier")
-    load_password_parser.set_defaults(func=lambda args: load_pw(args.password_name, session_manager))
+    load_password_parser.add_argument("-a", "--all-passwords", action="store_true", help="return all passwords for user")
+    load_password_parser.set_defaults(func=lambda args: load_pw(args.password_name, args.all_passwords, session_manager))
 
     args = parser.parse_args()
 
