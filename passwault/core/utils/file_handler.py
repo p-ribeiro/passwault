@@ -1,7 +1,9 @@
 import argparse
+import csv
 import json
 from multiprocessing import Value
 from pathlib import Path
+from shutil import ExecError
 from typing import List, Tuple
 
 from passwault.core.commands import password
@@ -21,8 +23,34 @@ def valid_file(file: str) -> bool:
 
     return file
 
+def _read_csv(file_path: Path):
+    pw_pairs = []
+    try:
+        with open(file_path, 'r', newline='') as csv_file:
+            sample = csv_file.read(2048)
+            csv_file.seek(0)
+            sniffer = csv.Sniffer()
+            dialect = sniffer.sniff(sample)
+            
+            has_header = sniffer.has_header(sample)
+            
+            reader = csv.reader(csv_file, dialect=dialect)
+            if has_header:
+                header = next(reader)
+                print(f"{header=}")
+            
+            for row in reader:
+                pw_pairs.append(tuple(row))
+            
+            return tuple(pw_pairs)
+            
+            
+    except Exception as e:
+        raise ValueError(f"Error with '{file_path.name}': {str(e)}")
+        
 
-def read_file(file: str) -> Tuple[List[str], List[str]] | None:
+
+def read_file(file: str) -> Tuple[Tuple[str, str]] | None:
     file_path = Path(file)
     file_suffix = file_path.suffix
 
@@ -30,7 +58,9 @@ def read_file(file: str) -> Tuple[List[str], List[str]] | None:
         ...
 
     if file_suffix == ".csv":
-        ...
+        result = _read_csv(file_path)
+        return result
+        
 
     if file_suffix == ".json":
         try:
@@ -42,7 +72,7 @@ def read_file(file: str) -> Tuple[List[str], List[str]] | None:
                 if password_names == [] or passwords == []:
                     return None
 
-                return (password_names, passwords)
+                return tuple(zip(password_names, passwords))
 
         except Exception as e:
             raise ValueError(f"Error with '{file_path.name}': {str(e)}")

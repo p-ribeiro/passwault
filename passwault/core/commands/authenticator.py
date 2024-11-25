@@ -1,3 +1,4 @@
+from argparse import ArgumentError
 from datetime import datetime
 
 from passwault.core.utils.database import (add_user, authentication, get_role,
@@ -8,6 +9,9 @@ from passwault.core.utils.session_manager import SessionManager
 
 def register(username: str, password: str, role: str) -> None:
 
+    if username is None or password is None or role is None:
+        raise ArgumentError(None, "Error with register. Please provide the username, password and role")
+    
     response = add_user(username, password, role)
     if not response.ok:
         Logger.error(response.result)
@@ -17,6 +21,11 @@ def register(username: str, password: str, role: str) -> None:
 
 
 def login(username: str, password: str, session_manager: SessionManager) -> None:
+    
+    if username is None or password is None:
+        raise ArgumentError(None, "Error with login. Please provide the username and password")
+    
+    
     response = authentication(username, password)
     if not response.ok:
         Logger.error(response.result)
