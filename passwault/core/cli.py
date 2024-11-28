@@ -26,14 +26,14 @@ def cli():
         # register subcommand
         register_parser = subparsers.add_parser("register", help="register a new user")
         register_parser.add_argument("-u", "--username", type=str, required=True, help="your username")
-        register_parser.add_argument("-p", "--password", type=str, required=True, help="your password")
+        register_parser.add_argument("-p", "--password", type=str, help="your password")
         register_parser.add_argument("-r", "--role", required=True, type=str, help="your role")
         register_parser.set_defaults(func=lambda args: register(args.username, args.password, args.role))
 
         # login subcommand
         login_parser = subparsers.add_parser("login", help="login into the system")
         login_parser.add_argument("-u", "--username", type=str, required=True, help="your username")
-        login_parser.add_argument("-p", "--password", type=str, required=True, help="your password")
+        login_parser.add_argument("-p", "--password", type=str, help="your password")
         login_parser.set_defaults(func=lambda args: login(args.username, args.password, session_manager))
 
         # logout subcommand

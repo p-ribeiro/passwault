@@ -41,6 +41,22 @@ def init_db():
     conn.commit()
     conn.close()
 
+def check_if_username_exists(username: str) -> Response:
+    query = f"""
+        SELECT 1 FROM users WHERE username = (?);
+    """
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query, (username,))
+        user_exists = cursor.fetchone()
+    except Exception as e:
+        return Response(False, f"Error during username check: {str(e)}")
+    finally:
+        conn.close()
+    
+    return Response(True, user_exists)
 
 def add_user(username: str, password: str, role: str) -> Response:
 
