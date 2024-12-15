@@ -1,20 +1,29 @@
+import importlib
 import json
 from datetime import datetime, timedelta
 from functools import wraps
 from multiprocessing import Value
 from os import path
 from pathlib import Path
+import inspect
 
 from passwault.core.utils.logger import Logger
 
 
 def check_session(func):
     @wraps(func)
-    def decorator(*args, **kwargs):
+    def wrapper(*args, **kwargs):
+
+        # lazy import of Embedder to avoid circular import
+        Embedder = importlib.import_module('passwault.imagepass.embedder').Embedder
+        
         if not args:
             raise ValueError("No positon arguments provided, session is missing")
 
-        session = args[-1]
+        if isinstance(args[0], Embedder):
+            session = kwargs["session_manager"]
+        else:
+            session = args[-1]
 
         if not isinstance(session, SessionManager):
             raise TypeError("Last object is not a session object")
@@ -25,7 +34,7 @@ def check_session(func):
 
         func(*args, **kwargs)
 
-    return decorator
+    return wrapper
 
 
 class SessionManager:

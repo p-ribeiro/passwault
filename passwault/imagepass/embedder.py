@@ -1,10 +1,11 @@
 import base64
 from pathlib import Path
 from random import choice
-from typing import List
+from tabnanny import check
+from typing import List, Optional
 
-from imagepass.utils.utils import password_generator
-
+from passwault.core.utils.session_manager import SessionManager, check_session
+from passwault.imagepass.utils.utils import password_generator
 from .utils.image_handler import ImageHandler
 
 START_OF_HEADER = chr(1)
@@ -14,9 +15,12 @@ BYTE_SIZE = 8
 
 
 class Embedder:
-    def __init__(self, image_path: str, password: str | None = None) -> None:
-        self.image_path = Path(image_path)
-        self.password = password
+    
+    def __init__(self) -> None:
+        self.image_path = None
+        self.password = None
+        self.session = None
+        self.user_id = None
 
     def _create_header(self, bands: list[str], key: str) -> str:
 
@@ -122,7 +126,13 @@ class Embedder:
                     decoded_byte = ""
                 source_bit_idx += 1
 
-    def decode(self):
+    @check_session
+    def decode(self, image_path: str, session_manager: SessionManager):
+        
+        self.image_path = Path(image_path)
+        self.session = session_manager.get_session()
+        self.user_id =  self.session["id"]        
+        
         image_handler = ImageHandler(self.image_path)
         for band in image_handler.bands.keys():
             band_values = image_handler.get_band_values(band)
@@ -134,8 +144,15 @@ class Embedder:
                 bands, key = header_decoded.split('|')
                 password = self._retrieve_message_lsb(band_values, key)
                 print(password)
-
-    def encode(self):
+    
+    @check_session
+    def encode(self, image_path: str, password: str, session_manager: SessionManager):
+        
+        self.image_path = Path(image_path)
+        self.password = password
+        self.session = session_manager.get_session()
+        self.user_id =  self.session["id"]
+        
         image_handler = ImageHandler(self.image_path)
         band_values = {}
         if len(self.password) < image_handler.size:

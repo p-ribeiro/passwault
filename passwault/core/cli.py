@@ -1,19 +1,35 @@
 import argparse
+from email.mime import image
 import sys
 from json import load
 
-from numpy import require
+from numpy import imag, ma, require
 
 from passwault.core.commands.authenticator import login, logout, register
 from passwault.core.commands.password import generate_pw, load_pw, save_pw
 from passwault.core.utils import session_manager
 from passwault.core.utils.database import init_db
-from passwault.core.utils.file_handler import valid_file
+from passwault.core.utils.file_handler import valid_file, valid_image_file
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager
+from passwault.imagepass import embedder
+from passwault.imagepass.embedder import Embedder
 
 session = {"logged_in": False}
 
+
+def handle_imagepass(args, session_manager):
+    
+    embedder = Embedder()
+    if args.option == "encode":
+        return embedder.encode(
+                            image_path = args.image_path,
+                            password = args.password,
+                            session_manager = session_manager)
+    else:
+        return embedder.decode(
+                            image_path = args.image_path,
+                            session_manager = session_manager)
 
 def cli():
     session_manager = SessionManager()
@@ -60,6 +76,13 @@ def cli():
         load_password_parser.add_argument("-n", "--password-name", type=str, help="the password identifier")
         load_password_parser.add_argument("-a", "--all-passwords", action="store_true", help="return all passwords for user")
         load_password_parser.set_defaults(func=lambda args: load_pw(args.password_name, args.all_passwords, session_manager))
+
+        # encode image with imagepass module
+        imagepass_parser = subparsers.add_parser("imagepass", help="Encode or Decode passwords in Image")
+        imagepass_parser.add_argument("option", choices=["encode", "decode"], help="Choose 'encode' to save a password inside an image or 'decode' to retrieve a password from an encoded image")
+        imagepass_parser.add_argument("image_path", type=valid_image_file, help="the image file")
+        imagepass_parser.add_argument("-p", "--password", help="the password to be encoded")
+        imagepass_parser.set_defaults(func=lambda args: handle_imagepass(args, session_manager))
 
         args = parser.parse_args()
 

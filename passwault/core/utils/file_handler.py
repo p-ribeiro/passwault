@@ -1,5 +1,7 @@
 import argparse
+from ast import arg
 import csv
+from email.mime import image
 import json
 from multiprocessing import Value
 from pathlib import Path
@@ -11,7 +13,20 @@ from passwault.core.utils.logger import Logger
 
 ALLOWED_EXT = ['.csv', '.txt', '.json']
 
+VALID_IMAGE_EXTENSIONS = ['.jpg', '.png', '.gif', '.jpeg', '.tiff', '.bmp']
 
+
+def valid_image_file(file: str) -> bool:
+    image_file_path = Path(file)
+    
+    if not image_file_path.exists():
+        raise argparse.ArgumentTypeError("Invalid file path")
+    
+    if image_file_path.suffix not in VALID_IMAGE_EXTENSIONS:
+        raise argparse.ArgumentTypeError(f"File must have one of the following extension: {'.'.join(VALID_IMAGE_EXTENSIONS)}")
+    
+    return file
+    
 def valid_file(file: str) -> bool:
     file_path = Path(file)
 
@@ -19,7 +34,7 @@ def valid_file(file: str) -> bool:
         raise argparse.ArgumentTypeError("Invalid file path")
 
     if file_path.suffix not in ALLOWED_EXT:
-        raise argparse.ArgumentTypeError(f"File must have one of the following extensions: {", ".join(ALLOWED_EXT)}")
+        raise argparse.ArgumentTypeError(f"File must have one of the following extensions: {','.join(ALLOWED_EXT)}")
 
     return file
 
