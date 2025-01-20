@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from passwault.core.utils.session_manager import SessionManager, check_session
 from passwault.imagepass.utils.utils import password_generator
+
 from .utils.image_handler import ImageHandler
 
 START_OF_HEADER = chr(1)
@@ -15,7 +16,6 @@ BYTE_SIZE = 8
 
 
 class Embedder:
-    
     def __init__(self) -> None:
         self.image_path = None
         self.password = None
@@ -126,13 +126,14 @@ class Embedder:
                     decoded_byte = ""
                 source_bit_idx += 1
 
-    @check_session
-    def decode(self, image_path: str, session_manager: SessionManager):
-        
+    # @check_session
+    def decode(self, image_path: str, session_manager: SessionManager = None):
+
         self.image_path = Path(image_path)
-        self.session = session_manager.get_session()
-        self.user_id =  self.session["id"]        
-        
+        if session_manager:
+            self.session = session_manager.get_session()
+            self.user_id = self.session["id"]
+
         image_handler = ImageHandler(self.image_path)
         for band in image_handler.bands.keys():
             band_values = image_handler.get_band_values(band)
@@ -143,16 +144,17 @@ class Embedder:
                 header_decoded = base64.b64decode(header.encode('ascii')).decode()
                 bands, key = header_decoded.split('|')
                 password = self._retrieve_message_lsb(band_values, key)
-                print(password)
-    
-    @check_session
-    def encode(self, image_path: str, password: str, session_manager: SessionManager):
-        
+                print("The retrieved password is: " + password)
+
+    # @check_session
+    def encode(self, image_path: str, password: str, session_manager: SessionManager = None):
+
         self.image_path = Path(image_path)
         self.password = password
-        self.session = session_manager.get_session()
-        self.user_id =  self.session["id"]
-        
+        if session_manager:
+            self.session = session_manager.get_session()
+            self.user_id = self.session["id"]
+
         image_handler = ImageHandler(self.image_path)
         band_values = {}
         if len(self.password) < image_handler.size:
@@ -161,18 +163,15 @@ class Embedder:
             band = choice(list(image_handler.bands.keys()))
             band_values[band] = image_handler.get_band_values(band)
 
-            key = password_generator(10, True, True, True)
+            key = password_generator(len=10, has_symbols=True, has_digits=True, has_uppercase=True)
 
             header = self._create_header([band], key)
             message = header + START_OF_MESSAGE + self.password + END_OF_MESSAGE
 
             self._insert_message_lsb(message.encode(), band_values[band], key)
-            print(band)
-            print(band_values[band][:8])
 
             image_handler.replace_band(band, band_values[band])
 
-            # print(len(bytearray(R_values)))
         else:
             # WIP
             pass
