@@ -5,9 +5,10 @@ description = "An encoder/decoder of passwords to images using steganography"
 authors = ["Pedro Ribeiro <pedromr21@gmail.com>"]
 readme = "README.md"
 package-mode = true
+packages = [{ include = "passwault" }]
 
 [tool.black]
-line-length = 120
+line-length = 150
 skip-string-normalization = true
 
 [tool.poetry.dependencies]

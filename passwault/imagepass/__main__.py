@@ -26,9 +26,9 @@ def main():
     if args.option == "encode":
         if not args.password:
             raise ValueError("ERROR: You need to insert the password that will be encoded")
-        Embedder(args.image_path, args.password).encode()
+        Embedder().encode(args.image_path, args.password)
     else:
-        Embedder(args.image_path).decode()
+        Embedder().decode(args.image_path)
 
 
 if __name__ == "__main__":

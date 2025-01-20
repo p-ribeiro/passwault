@@ -1,13 +1,25 @@
+from argparse import ArgumentError
 from datetime import datetime
 
-from passwault.core.utils.database import (add_user, authentication, get_role,
+from passwault.core.utils.database import (add_user, authentication, check_if_username_exists, get_role,
                                            get_user_id)
 from passwault.core.utils.logger import Logger
+from passwault.core.utils.password import get_password_with_mask
 from passwault.core.utils.session_manager import SessionManager
 
 
 def register(username: str, password: str, role: str) -> None:
-
+    if password is None:
+        password = get_password_with_mask()
+    
+    user_exists = check_if_username_exists(username)
+    if not user_exists.ok:
+        Logger.error(user_exists.result)
+    
+    if user_exists.result is not None:
+        Logger.info("This username is already taken. Please provide another.")
+        return
+    
     response = add_user(username, password, role)
     if not response.ok:
         Logger.error(response.result)
@@ -17,6 +29,10 @@ def register(username: str, password: str, role: str) -> None:
 
 
 def login(username: str, password: str, session_manager: SessionManager) -> None:
+    
+    if password is None:
+        password = get_password_with_mask()
+    
     response = authentication(username, password)
     if not response.ok:
         Logger.error(response.result)

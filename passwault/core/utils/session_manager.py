@@ -1,7 +1,40 @@
+import importlib
 import json
 from datetime import datetime, timedelta
+from functools import wraps
+from multiprocessing import Value
 from os import path
 from pathlib import Path
+import inspect
+
+from passwault.core.utils.logger import Logger
+
+
+def check_session(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+
+        # lazy import of Embedder to avoid circular import
+        Embedder = importlib.import_module('passwault.imagepass.embedder').Embedder
+        
+        if not args:
+            raise ValueError("No positon arguments provided, session is missing")
+
+        if isinstance(args[0], Embedder):
+            session = kwargs["session_manager"]
+        else:
+            session = args[-1]
+
+        if not isinstance(session, SessionManager):
+            raise TypeError("Last object is not a session object")
+
+        if not session.is_logged_in():
+            Logger.info("User is not logged in")
+            return
+
+        func(*args, **kwargs)
+
+    return wrapper
 
 
 class SessionManager:
@@ -42,8 +75,3 @@ class SessionManager:
                 time_difference = datetime.now() - datetime.fromisoformat(session["time"])
                 if time_difference >= timedelta(minutes=10):
                     self.logout()
-
-
-if __name__ == "__main__":
-    sm = SessionManager()
-    print(sm.root_path)

@@ -1,18 +1,35 @@
 import re
+from pathlib import Path
 from random import choice
 
-from passwault.core.utils.database import get_password, save_password
+from passwault.core.utils.database import (get_all_passwords, get_password,
+                                           save_password)
+from passwault.core.utils.file_handler import read_file, valid_file
 from passwault.core.utils.logger import Logger
-from passwault.core.utils.session_manager import SessionManager
+from passwault.core.utils.session_manager import SessionManager, check_session
 
 
-def save_pw(password: str, password_name: str, session_manager: SessionManager):
-    if not session_manager.is_logged_in():
-        Logger.info("User is not logged in")
-        return
+@check_session
+def save_pw(password: str, password_name: str, file: str, session_manager: SessionManager):
 
     session = session_manager.get_session()
     user_id = session["id"]
+
+    if file:
+        pw_pairs = read_file(file)
+        if pw_pairs is None:
+            Logger.error("TBD error invalid file")
+            return
+
+        for pw_name, pw in pw_pairs:
+            save_password(user_id, pw, pw_name)
+
+        Logger.info("Successfully imported the password file")
+        return
+
+    if (password_name and password is None) or (password and password_name is None):
+        Logger.error("You should insert a password with a password_name")
+        return
 
     response = save_password(user_id, password, password_name)
     if not response.ok:
@@ -22,15 +39,23 @@ def save_pw(password: str, password_name: str, session_manager: SessionManager):
     Logger.info("Password inserted with success")
 
 
-def load_pw(password_name: str, session_manager: SessionManager):
-
-    if not session_manager.is_logged_in():
-        Logger.info("User is not logged in")
-        return
+@check_session
+def load_pw(password_name: str, all_passwords: bool, session_manager: SessionManager):
 
     session = session_manager.get_session()
     user_id = session["id"]
 
+    # return all passwords and return
+    if all_passwords == True:
+        response = get_all_passwords(user_id)
+        if not response.ok:
+            Logger.error(response.result)
+            return
+        for pws in response.result:
+            print(f"{pws[0]}: {pws[1]}")
+        return
+
+    # returns password
     response = get_password(user_id, password_name)
     if not response.ok:
         Logger.error(response.result)
@@ -39,9 +64,7 @@ def load_pw(password_name: str, session_manager: SessionManager):
     print(f"Password for {password_name}: {response.result}")
 
 
-def generate_pw(
-    password_length: int, has_symbols: bool = True, has_digits: bool = True, has_uppercase: bool = True
-) -> None:
+def generate_pw(password_length: int, has_symbols: bool = True, has_digits: bool = True, has_uppercase: bool = True) -> None:
 
     MAX_ITER = 10
     SYMBOLS_RANGE = [33, 38]
