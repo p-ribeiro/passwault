@@ -1,9 +1,5 @@
 import argparse
-from email.mime import image
 import sys
-from json import load
-
-from numpy import imag, ma, require
 
 from passwault.core.commands.authenticator import login, logout, register
 from passwault.core.commands.password import generate_pw, load_pw, save_pw
@@ -12,7 +8,6 @@ from passwault.core.utils.database import init_db
 from passwault.core.utils.file_handler import valid_file, valid_image_file
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager
-from passwault.imagepass import embedder
 from passwault.imagepass.embedder import Embedder
 
 session = {"logged_in": False}
@@ -97,6 +92,3 @@ def cli():
         Logger.error(e)
 
 
-if __name__ == "__main__":
-    init_db()
-    cli()
