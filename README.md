@@ -38,3 +38,5 @@ I needed a better way to manage my passwords without relying on third-party soft
     options:
     -h, --help            show this help message and exit
     ```
+
+## Contributing
