@@ -1,225 +1,137 @@
+from abc import ABC, abstractmethod
 import sqlite3
 from ast import List
-
+from typing import Any, Generic, Optional, Tuple, TypeVar, Union
 import bcrypt
 
-import passwault
 from passwault.core.utils.local_types import Response
 
-ROLES = {"admin": 1, "user": 2}
+class DatabaseError(Exception):
+    pass
 
+class IntegrityError(DatabaseError):
+    pass
 
-def get_connection(db="passwalt.db") -> sqlite3.Connection:
-    conn = sqlite3.connect(db)
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+class ConnectionError(DatabaseError):
+    pass
 
+T = TypeVar('T')
 
-def init_db():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    query_create_users = """
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL
-        )"""
-    query_create_passwords = """
-        CREATE TABLE IF NOT EXISTS passwords (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            password_name TEXT NOT NULL,
-            password TEXT NOT NULL,
-            user_id INTEGER NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-        )"""
-
-    cursor.execute(query_create_users)
-    cursor.execute(query_create_passwords)
-
-    conn.commit()
-    conn.close()
-
-def check_if_username_exists(username: str) -> Response:
-    query = f"""
-        SELECT 1 FROM users WHERE username = (?);
-    """
+class DatabaseConnector(ABC, Generic[T]):
     
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(query, (username,))
-        user_exists = cursor.fetchone()
-    except Exception as e:
-        return Response(False, f"Error during username check: {str(e)}")
-    finally:
-        conn.close()
+    connection: Any
+    cursor: T
     
-    return Response(True, user_exists)
+    def __init__(self) -> None:
+        self.connection = None
+        self.cursor = None
+    
+    @abstractmethod
+    def connect(self):
+        pass
+    
+    @abstractmethod
+    def _map_exception(self, exception):
+        pass
+    
+    def execute_query(self, query: str, params: Optional[Tuple] = None) -> T:
+        try:
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            self.connection.commit()
+            
+            return self.cursor
+        except Exception as e:
+            # Map the exception to our custom hierarchy
+            mapped_exception = self._map_exception(e)
+            if mapped_exception:
+                raise mapped_exception
+            # If no mapping exists, re-raise the original exception
+            raise
 
-def add_user(username: str, password: str, role: str) -> Response:
+    @abstractmethod
+    def insert_one(self):
+        pass
+    
+    @abstractmethod
+    def fetch_all(self, query: str, params: Optional[Tuple] = None) -> List[Any]:
+        pass
+    
+    @abstractmethod
+    def fetch_one(self, query: str, params: Optional[Tuple] = None) -> Any:
+        pass
+    
+    @abstractmethod
+    def get_placeholder_symbol(self):
+        pass
 
-    if role.lower() not in ROLES:
-        return Response(False, "This role is invalid")
+    @abstractmethod
+    def close(self):
+        if self.connection:
+            self.connection.close()
 
-    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+SQLiteCursor = TypeVar('SQLiteCursor', bound='sqlite3.Cursor')
 
-    query = f"""
-        INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?);
-    """
+class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
+    
+    def __init__(self, db_path: str) -> None:
+        super().__init__()
+        self.db_path = db_path
+    
+    def _map_exception(self, exception) -> Union[IntegrityError, ConnectionError]:
+        if isinstance(exception, sqlite3.IntegrityError):
+            if "UNIQUE constraint failed" in str(exception):
+                return IntegrityError(f"Record already exists: {str(exception)}")
+        
+        return None
+    
+    def connect(self) -> 'SQLiteConnector':
+        self.connection = sqlite3.connect(self.db_path)
+        self.connection.execute("PRAGMA foreign_keys = ON")
+        self.cursor = self.connection.cursor()
+        return self
+    
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(query, (username, password_hash, ROLES[role.lower()]))
-        conn.commit()
-    except sqlite3.IntegrityError as ie:
-        return Response(False, f"User already exists")
-    except Exception as e:
-        return Response(False, f"Error during insertion: {str(e)}")
-    finally:
-        conn.close()
+    def init_db(self) -> None:
+        self.connect()
+        
+        query_create_users = """
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL
+            );
+            """
+        query_create_passwords = """
+            CREATE TABLE IF NOT EXISTS passwords (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                password_name TEXT NOT NULL,
+                password TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            """
 
-    return Response(True, None)
+        self.cursor.execute(query_create_users)
+        self.cursor.execute(query_create_passwords)
 
-
-def authentication(username: str, password: str) -> Response:
-
-    query = f"""
-        SELECT user_id, password_hash FROM users WHERE username=?
-    """
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute(query, (username,))
-        user = cursor.fetchone()
-
-        if user is None:
-            return Response(False, "User not found")
-
-        user_id: int = user[0]
-        password_hash: str = user[1]
-
-        if bcrypt.checkpw(password.encode('utf-8'), password_hash):
-            return Response(True, user_id)
-        else:
-            return Response(False, "Authentication failed")
-    except Exception as e:
-        return Response(False, f"Error found while authenticating user: {e}")
-    finally:
-        conn.close()
-
-
-def authorization(username: str, required_role: str) -> Response:
-
-    query = f"""
-        SELECT role FROM users WHERE username=?
-    """
-
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(query, (username,))
-    user = cursor.fetchone()
-    conn.close()
-
-    if user is None:
-        return (False, "User not found")
-
-    user_role = user[0]
-
-    if required_role.lower() == user_role:
-        return Response(True, None)
-    else:
-        return Response(False, "Not authorized")
-
-
-def get_user_id(username: str) -> Response:
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT user_id FROM users WHERE username=?", (username,))
-        user_id: int = cursor.fetchone()
-
-        if user_id:
-            return Response(True, user_id[0])
-        else:
-            return Response(False, "User not found")
-
-    except Exception as e:
-        return Response(False, f"Error getting user_id: {e}")
-    finally:
-        conn.close()
-
-
-def get_role(username: str) -> Response:
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT role FROM users WHERE username=?", (username,))
-        user_role: int = cursor.fetchone()
-
-        if user_role:
-            return Response(True, user_role[0])
-        else:
-            return Response(False, "User not found")
-
-    except Exception as e:
-        return Response(False, f"Error getting user_role: {e}")
-    finally:
-        conn.close()
+        self.connection.commit()
+        self.close()
 
 
-def save_password(user_id: int, password: str, password_name: str) -> Response:
-    conn = get_connection()
-    cursor = conn.cursor()
+    def fetch_one(self, query: str, params: Optional[Tuple] = None) -> Any:
+        self.execute_query(query, params)
+        return self.cursor.fetchone()
+    
+    def fetch_all(self, query: str, params: Optional[Tuple] = None) -> List[Any]:
+        self.execute_query(query, params)
+        return self.cursor.fetchall()
 
-    query = "INSERT INTO passwords (password_name, password, user_id) VALUES (?,?,?)"
-    try:
-        cursor.execute(query, (password_name, password, user_id))
-        conn.commit()
-    except Exception as e:
-        return Response(False, f"Error while saving password: {e}")
-    finally:
-        conn.close()
-    return Response(True, None)
+    def get_placeholder_symbol(self):
+        return "?"
 
 
-def get_password(user_id: str, password_name: str) -> Response:
 
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    query = "SELECT password FROM passwords WHERE password_name=? AND user_id=?"
-    try:
-        cursor.execute(query, (password_name, user_id))
-        password: str = cursor.fetchone()
-
-        if password:
-            return Response(True, password[0])
-        else:
-            return Response(False, "Password not found")
-    except Exception as e:
-        return Response(False, f"Error while retrieving password: {e}")
-    finally:
-        conn.close()
-
-
-def get_all_passwords(user_id: str):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    query = "SELECT password_name, password FROM passwords WHERE user_id=?"
-    try:
-        cursor.execute(query, (user_id,))
-        passwords: List = cursor.fetchall()
-        if len(passwords) > 0:
-            return Response(True, passwords)
-        else:
-            return Response(True, f"There is not password for user: {user_id}")
-    except Exception as e:
-        return Response(False, f"Error while retrieving all passwords: {e}")
-    finally:
-        conn.close()
