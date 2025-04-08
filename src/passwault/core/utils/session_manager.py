@@ -2,10 +2,8 @@ import importlib
 import json
 from datetime import datetime, timedelta
 from functools import wraps
-from multiprocessing import Value
 from os import path
 from pathlib import Path
-import inspect
 
 from passwault.core.utils.logger import Logger
 
@@ -16,7 +14,7 @@ def check_session(func):
 
         # lazy import of Embedder to avoid circular import
         Embedder = importlib.import_module('passwault.imagepass.embedder').Embedder
-        
+
         if not args:
             raise ValueError("No positon arguments provided, session is missing")
 

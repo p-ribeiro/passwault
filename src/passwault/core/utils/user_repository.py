@@ -1,5 +1,3 @@
-from logging import PlaceHolder
-import sqlite3
 from typing import List
 import bcrypt
 from passwault.core.utils.database import DatabaseConnector, IntegrityError
@@ -7,18 +5,18 @@ from passwault.core.utils.local_types import Response
 
 ROLES = {"admin": 1, "user": 2}
 
+
 class UserRepository:
     def __init__(self, db_connector: DatabaseConnector):
         self.db = db_connector
         self.db.connect()
         self.roles = ROLES
-    
+
     def check_if_username_exists(self, username: str) -> Response:
         query = "SELECT 1 FROM users WHERE username = {} LIMIT 1;"
         query = query.format(self.db.get_placeholder_symbol())
         result = self.fetch_one(query, (username,))
         return Response(True, result is not None)
-            
 
     def add_user(self, username: str, password: str, role: str) -> Response:
         placeholder = self.db.get_placeholder_symbol()
@@ -31,8 +29,8 @@ class UserRepository:
 
         try:
             self.db.execute_query(query, (username, password_hash, ROLES[role.lower()]))
-        except IntegrityError as ie:
-            return Response(False, f"User already exists")
+        except IntegrityError:
+            return Response(False, "User already exists")
         except Exception as e:
             return Response(False, f"Error during insertion: {str(e)}")
         finally:
@@ -40,13 +38,12 @@ class UserRepository:
 
         return Response(True, None)
 
-
     def authentication(self, username: str, password: str) -> Response:
         placeholder = self.db.get_placeholder_symbol()
         query = f"SELECT user_id, password_hash FROM users WHERE username=({placeholder});"
 
         try:
-            user = self.db.fetch_one(query, (username, ))
+            user = self.db.fetch_one(query, (username,))
 
             if user is None:
                 return Response(False, "User not found")
@@ -62,7 +59,6 @@ class UserRepository:
             return Response(False, f"Error found while authenticating user: {e}")
         finally:
             self.db.close()
-
 
     def authorization(self, username: str, required_role: str) -> Response:
         placeholder = self.db.get_placeholder_symbol()
@@ -85,11 +81,10 @@ class UserRepository:
         finally:
             self.db.close()
 
-
     def get_user_id(self, username: str) -> Response:
         placeholder = self.db.get_placeholder_symbol()
         query = f"SELECT user_id FROM users WHERE username=({placeholder});"
-        
+
         try:
             user_id: int = self.db.fetchone(query, username)
 
@@ -103,10 +98,9 @@ class UserRepository:
         finally:
             self.db.close()
 
-
     def get_role(self, username: str) -> Response:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"SELECT role FROM users WHERE username=({placeholder});" 
+        query = f"SELECT role FROM users WHERE username=({placeholder});"
 
         try:
             user_role: int = self.db.fetchone(query, (username,))
@@ -121,7 +115,6 @@ class UserRepository:
         finally:
             self.db.close()
 
-
     def save_password(self, user_id: int, password: str, password_name: str) -> Response:
         placeholder = self.db.get_placeholder_symbol()
         query = f"INSERT INTO passwords (password_name, password, user_id) VALUES ({placeholder}, {placeholder}, {placeholder});"
@@ -133,7 +126,6 @@ class UserRepository:
         finally:
             self.db.close()
         return Response(True, None)
-
 
     def get_password(self, user_id: str, password_name: str) -> Response:
         placeholder = self.db.get_placeholder_symbol()
@@ -150,7 +142,6 @@ class UserRepository:
             return Response(False, f"Error while retrieving password: {e}")
         finally:
             self.db.close()
-
 
     def get_all_passwords(self, user_id: str):
         placeholder = self.db.get_placeholder_symbol()

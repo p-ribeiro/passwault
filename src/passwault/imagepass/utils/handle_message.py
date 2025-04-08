@@ -1,9 +1,5 @@
-import binascii
-from typing import List
-
 
 def message_to_bytes(message: str) -> bytes:
-
     """Return the 8 bits representation of all characters in the string
 
     Returns:

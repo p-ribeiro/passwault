@@ -1,6 +1,4 @@
 import argparse
-from pathlib import Path
-
 from .embedder import Embedder
 from .utils import verifier
 

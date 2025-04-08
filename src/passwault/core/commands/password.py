@@ -1,10 +1,8 @@
 import re
-from pathlib import Path
 from random import choice
 
-from passwault.core.utils.database import (get_all_passwords, get_password,
-                                           save_password)
-from passwault.core.utils.file_handler import read_file, valid_file
+from passwault.core.utils.database import get_all_passwords, get_password, save_password
+from passwault.core.utils.file_handler import read_file
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager, check_session
 
@@ -46,7 +44,7 @@ def load_pw(password_name: str, all_passwords: bool, session_manager: SessionMan
     user_id = session["id"]
 
     # return all passwords and return
-    if all_passwords == True:
+    if all_passwords is True:
         response = get_all_passwords(user_id)
         if not response.ok:
             Logger.error(response.result)

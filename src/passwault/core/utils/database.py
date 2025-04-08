@@ -1,47 +1,48 @@
 from abc import ABC, abstractmethod
 import sqlite3
-from ast import List
-from typing import Any, Generic, Optional, Tuple, TypeVar, Union
-import bcrypt
+from typing import Any, Generic, Optional, TypeVar, Union
 
-from passwault.core.utils.local_types import Response
 
 class DatabaseError(Exception):
     pass
 
+
 class IntegrityError(DatabaseError):
     pass
+
 
 class ConnectionError(DatabaseError):
     pass
 
+
 T = TypeVar('T')
 
+
 class DatabaseConnector(ABC, Generic[T]):
-    
+
     connection: Any
     cursor: T
-    
+
     def __init__(self) -> None:
         self.connection = None
         self.cursor = None
-    
+
     @abstractmethod
     def connect(self):
         pass
-    
+
     @abstractmethod
     def _map_exception(self, exception):
         pass
-    
-    def execute_query(self, query: str, params: Optional[Tuple] = None) -> T:
+
+    def execute_query(self, query: str, params: Optional[tuple] = None) -> T:
         try:
             if params:
                 self.cursor.execute(query, params)
             else:
                 self.cursor.execute(query)
             self.connection.commit()
-            
+
             return self.cursor
         except Exception as e:
             # Map the exception to our custom hierarchy
@@ -54,15 +55,15 @@ class DatabaseConnector(ABC, Generic[T]):
     @abstractmethod
     def insert_one(self):
         pass
-    
+
     @abstractmethod
-    def fetch_all(self, query: str, params: Optional[Tuple] = None) -> List[Any]:
+    def fetch_all(self, query: str, params: Optional[tuple] = None) -> list[Any]:
         pass
-    
+
     @abstractmethod
-    def fetch_one(self, query: str, params: Optional[Tuple] = None) -> Any:
+    def fetch_one(self, query: str, params: Optional[tuple] = None) -> Any:
         pass
-    
+
     @abstractmethod
     def get_placeholder_symbol(self):
         pass
@@ -72,31 +73,32 @@ class DatabaseConnector(ABC, Generic[T]):
         if self.connection:
             self.connection.close()
 
+
 SQLiteCursor = TypeVar('SQLiteCursor', bound='sqlite3.Cursor')
 
+
 class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
-    
+
     def __init__(self, db_path: str) -> None:
         super().__init__()
         self.db_path = db_path
-    
+
     def _map_exception(self, exception) -> Union[IntegrityError, ConnectionError]:
         if isinstance(exception, sqlite3.IntegrityError):
             if "UNIQUE constraint failed" in str(exception):
                 return IntegrityError(f"Record already exists: {str(exception)}")
-        
+
         return None
-    
+
     def connect(self) -> 'SQLiteConnector':
         self.connection = sqlite3.connect(self.db_path)
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.cursor = self.connection.cursor()
         return self
-    
 
     def init_db(self) -> None:
         self.connect()
-        
+
         query_create_users = """
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,17 +123,13 @@ class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
         self.connection.commit()
         self.close()
 
-
-    def fetch_one(self, query: str, params: Optional[Tuple] = None) -> Any:
+    def fetch_one(self, query: str, params: Optional[tuple] = None) -> Any:
         self.execute_query(query, params)
         return self.cursor.fetchone()
-    
-    def fetch_all(self, query: str, params: Optional[Tuple] = None) -> List[Any]:
+
+    def fetch_all(self, query: str, params: Optional[tuple] = None) -> list[Any]:
         self.execute_query(query, params)
         return self.cursor.fetchall()
 
     def get_placeholder_symbol(self):
         return "?"
-
-
-

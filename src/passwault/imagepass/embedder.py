@@ -1,10 +1,9 @@
 import base64
 from pathlib import Path
 from random import choice
-from tabnanny import check
-from typing import List, Optional
+from typing import List
 
-from passwault.core.utils.session_manager import SessionManager, check_session
+from passwault.core.utils.session_manager import SessionManager
 from passwault.imagepass.utils.utils import password_generator
 
 from .utils.image_handler import ImageHandler
