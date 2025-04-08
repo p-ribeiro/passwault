@@ -52,9 +52,9 @@ class DatabaseConnector(ABC, Generic[T]):
             # If no mapping exists, re-raise the original exception
             raise
 
-    @abstractmethod
-    def insert_one(self):
-        pass
+    # @abstractmethod
+    # def insert_one(self):
+    #     pass
 
     @abstractmethod
     def fetch_all(self, query: str, params: Optional[tuple] = None) -> list[Any]:
@@ -68,7 +68,6 @@ class DatabaseConnector(ABC, Generic[T]):
     def get_placeholder_symbol(self):
         pass
 
-    @abstractmethod
     def close(self):
         if self.connection:
             self.connection.close()
@@ -102,9 +101,9 @@ class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
         query_create_users = """
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL,
+                username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL
+                role INT NOT NULL
             );
             """
         query_create_passwords = """
@@ -121,7 +120,6 @@ class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
         self.cursor.execute(query_create_passwords)
 
         self.connection.commit()
-        self.close()
 
     def fetch_one(self, query: str, params: Optional[tuple] = None) -> Any:
         self.execute_query(query, params)
