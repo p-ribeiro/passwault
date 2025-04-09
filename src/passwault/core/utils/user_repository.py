@@ -9,16 +9,19 @@ class UserRepository:
     def __init__(self, db_connector: DatabaseConnector):
         self.db = db_connector
         self.roles = enums.ROLES
-
+        self.user_id : int | None = None
+        
     def check_if_username_exists(self, username: str) -> Response[bool]:
         query = "SELECT 1 FROM users WHERE username = {};"
         query = query.format(self.db.get_placeholder_symbol())
         result = self.db.fetch_one(query, (username,))
         return Success(result is not None)
 
-    def add_user(self, username: str, password: str, role: str) -> Response[None]:
+    def register(self, username: str, password: str, role: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"INSERT INTO users (username, password_hash, role) VALUES ({placeholder}, {placeholder}, {placeholder});"
+        query = f"""INSERT INTO users (username, password_hash, role) 
+                    VALUES ({placeholder}, {placeholder}, {placeholder});
+                """
 
         if role.lower() not in self.roles:
             return Fail("This role is invalid")
@@ -26,7 +29,8 @@ class UserRepository:
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
         try:
-            self.db.execute_query(query, (username, password_hash, enums.ROLES[role.lower()]))
+            cursor = self.db.execute_query(query, (username, password_hash, enums.ROLES[role.lower()]))
+            self.id = cursor.lastrowid
         except IntegrityError:
             return Fail("User already exists")
         except Exception as e:
@@ -36,7 +40,9 @@ class UserRepository:
 
     def authentication(self, username: str, password: str) -> Response[int]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"SELECT user_id, password_hash FROM users WHERE username=({placeholder});"
+        query = f"""SELECT user_id, password_hash 
+                    FROM users WHERE username=({placeholder});
+                """
 
         try:
             user = self.db.fetch_one(query, (username,))
@@ -56,7 +62,10 @@ class UserRepository:
 
     def authorization(self, username: str, required_role: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"SELECT role FROM users WHERE username=({placeholder});"
+        query = f"""SELECT role
+                    FROM users 
+                    WHERE username=({placeholder});
+                """
 
         try:
             user = self.db.fetch_one(query, (username,))
@@ -73,28 +82,35 @@ class UserRepository:
         except Exception as e:
             return Fail(f"Error authorizing user: {e}")
         
-    def get_user_id(self, username: str) -> Response[int]:
+    def get_username(self) -> Response[str]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"SELECT user_id FROM users WHERE username=({placeholder});"
+        query = f"""
+                SELECT username
+                FROM users
+                WHERE user_id=({placeholder});
+                """
 
         try:
-            user_id: int = self.db.fetch_one(query, (username,))
+            username: str = self.db.fetch_one(query, (self.id,))
 
-            if user_id:
-                return Success(user_id[0])
+            if username:
+                return Success(username[0])
             else:
                 return Fail("User not found")
 
         except Exception as e:
             return Fail(f"Error getting user_id: {e}")
 
-
-    def get_role(self, username: str) -> Response[int]:
+    def get_role(self) -> Response[int]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"SELECT role FROM users WHERE username=({placeholder});"
+        query = f"""
+                SELECT role
+                FROM users
+                WHERE user_id=({placeholder});
+                """
 
         try:
-            user_role: int = self.db.fetch_one(query, (username,))
+            user_role: int = self.db.fetch_one(query, (self.id,))
 
             if user_role:
                 return Success(user_role[0])
@@ -104,24 +120,29 @@ class UserRepository:
         except Exception as e:
             return Fail(f"Error getting user_role: {e}")
 
-
-    def save_password(self, user_id: int, password: str, password_name: str) -> Response[None]:
+    def save_password(self, password: str, password_name: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"INSERT INTO passwords (password_name, password, user_id) VALUES ({placeholder}, {placeholder}, {placeholder});"
+        query = f"""INSERT INTO passwords (password_name, password, user_id) 
+                    VALUES ({placeholder}, {placeholder}, {placeholder});
+                """
 
         try:
-            self.db.execute_query(query, (password_name, password, user_id))
+            self.db.execute_query(query, (password_name, password, self.id))
         except Exception as e:
             return Fail(f"Error while saving password: {e}")
 
         return Success(None)
 
-    def get_password(self, user_id: str, password_name: str) -> Response[str]:
+    def get_password(self, password_name: str) -> Response[str]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"SELECT password FROM passwords WHERE password_name={placeholder} AND user_id={placeholder};"
+        query = f"""SELECT password 
+                    FROM passwords 
+                    WHERE password_name={placeholder}
+                    AND user_id={placeholder};
+                """
 
         try:
-            password: str = self.db.fetch_one(query, (password_name, user_id))
+            password: str = self.db.fetch_one(query, (password_name, self.id))
 
             if password:
                 return Success(password[0])
@@ -130,17 +151,20 @@ class UserRepository:
         except Exception as e:
             return Fail(f"Error while retrieving password: {e}")
 
-
-    def get_all_passwords(self, user_id: str) -> Response[list[str]]:
+    def get_all_passwords(self) -> Response[list[str]]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"SELECT password_name, password FROM passwords WHERE user_id=({placeholder});"
+        query = f"""
+                SELECT password_name, password
+                FROM passwords
+                WHERE user_id=({placeholder});
+                """
 
         try:
-            passwords: List[str] = self.db.fetch_all(query, (user_id,))
+            passwords: List[str] = self.db.fetch_all(query, (self.id,))
             if len(passwords) > 0:
                 return Success(passwords)
             else:
-                return Fail(f"There is not password for user: {user_id}")
+                return Fail(f"There is not password for user: {self.id}")
         except Exception as e:
             return Fail(f"Error while retrieving all passwords: {e}")
 

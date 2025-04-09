@@ -12,7 +12,7 @@ def connector():
 
 def create_default_user(connector, role = "user"):
     user_repo = UserRepository(connector)
-    response = user_repo.add_user(
+    response = user_repo.register(
         username = "johndoe",
         password = "this_is_my_password",
         role = role
@@ -37,7 +37,7 @@ def test_check_if_username_not_exists(connector):
     assert response.ok == True    
     assert response.result == False
 
-def test_add_user(connector):
+def test_register(connector):
     user_repo = create_default_user(connector)
     user = connector.fetch_one("SELECT * FROM users WHERE username = ?", ("johndoe",))
 
@@ -46,10 +46,10 @@ def test_add_user(connector):
     assert user[2] != "this_is_my_password"
     assert user[3] == user_repo.roles["user"]
 
-def test_add_duplicate_user(connector):
+def test_register_duplicate_user(connector):
     user_repo = create_default_user(connector)
     
-    response = user_repo.add_user(
+    response = user_repo.register(
         username = "johndoe",
         password = "another_pws",
         role = "admin"
@@ -100,67 +100,75 @@ def test_authorization_user_not_found(connector):
     assert response.ok == False
     assert response.result == "User not found"
 
-def test_get_user_id(connector):
+def test_get_username(connector):
     user_repo = create_default_user(connector)
-    user_repo.add_user("janedoe", "testing", "user")
-    user_repo.add_user("bobthebuilder", "hammertime", "admin")
     
-    response = user_repo.get_user_id("bobthebuilder")
-    
+    response = user_repo.get_username()
     assert response.ok == True
-    assert response.result == 3
+    assert response.result == "johndoe"
 
-def test_get_user_not_found(connector):
-    user_repo = create_default_user(connector)
-    user_repo.add_user("janedoe", "testing", "user")
-    user_repo.add_user("bobthebuilder", "hammertime", "admin")
-    
-    response = user_repo.get_user_id("jacktheripper")
-    
-    assert response.ok == False
-    assert response.result == "User not found"
 
 def test_get_role(connector):
     user_repo = create_default_user(connector, "admin")
     
-    response = user_repo.get_role("johndoe")
+    response = user_repo.get_role()
     
     assert response.ok == True
     assert response.result == enums.ROLES["admin"]
     
-def test_get_role_user_not_found(connector):
-    user_repo = create_default_user(connector, "admin")
-    
-    response = user_repo.get_role("janedoe")
-    
-    assert response.ok == False
-    assert response.result == "User not found"
 
 def test_save_password_to_user(connector):
     user_repo = create_default_user(connector)
     
-    response = user_repo.save_password(1, "thehardestpassword", "mybank")
+    response = user_repo.save_password("thehardestpassword", "mybank")
     assert response.ok == True
     assert response.result == None
 
-def test_save_password_to_non_existing_user(connector):
-    user_repo = create_default_user(connector)
-    
-    response = user_repo.save_password(2, "thehardestpassword", "mybank")
-    
-    assert response.ok == False
-    assert "Error while saving password" in response.result 
 
 def test_get_password(connector):
     user_repo = create_default_user(connector)
     
-    response = user_repo.save_password(1, "thehardestpassword", "mybank")
+    response = user_repo.save_password("thehardestpassword", "mybank")
     assert response.ok == True
 
-    response = user_repo.get_password(1, "mybank")    
+    response = user_repo.get_password("mybank")    
     assert response.ok == True
     assert response.result == "thehardestpassword"
+
+def test_get_password_not_found(connector):
+    user_repo = create_default_user(connector)
     
+    response = user_repo.save_password("thehardestpassword", "mybank")
+    assert response.ok == True
+    
+    response = user_repo.get_password("not_mybank")
+    assert response.ok == False
+    assert response.result == "Password not found"
+    
+
+def test_get_all_passwords(connector):
+    user_repo = create_default_user(connector)
+    
+    user_repo.save_password("thehardestpassword1", "mybank1")
+    user_repo.save_password("thehardestpassword2", "mybank2")
+    user_repo.save_password("thehardestpassword3", "mybank3")
+    user_repo.save_password("thehardestpassword4", "mybank4")
+    user_repo.save_password("thehardestpassword5", "mybank5")
+    user_repo.save_password("thehardestpassword6", "mybank6")
+    user_repo.save_password("thehardestpassword7", "mybank7") 
+
+    response = user_repo.get_all_passwords()
+    assert response.ok == True
+    assert response.result == [("mybank1", "thehardestpassword1"), 
+                               ("mybank2", "thehardestpassword2"), 
+                               ("mybank3", "thehardestpassword3"),
+                               ("mybank4", "thehardestpassword4"),
+                               ("mybank5", "thehardestpassword5"),
+                               ("mybank6", "thehardestpassword6"),
+                               ("mybank7", "thehardestpassword7"),
+                               ]
+     
+
 
 
 

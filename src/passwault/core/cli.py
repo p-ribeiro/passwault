@@ -1,12 +1,12 @@
 import argparse
 import sys
 
-from passwault.core.commands.authenticator import login, logout, register
-from passwault.core.commands.password import generate_pw, load_pw, save_pw
-from passwault.core.utils.file_handler import valid_file, valid_image_file
-from passwault.core.utils.logger import Logger
-from passwault.core.utils.session_manager import SessionManager
-from passwault.imagepass.embedder import Embedder
+from src.passwault.core.commands.authenticator import login, logout, register
+from src.passwault.core.commands.password import generate_pw, load_pw, save_pw
+from src.passwault.core.utils.file_handler import valid_file, valid_image_file
+from src.passwault.core.utils.logger import Logger
+from src.passwault.core.utils.session_manager import SessionManager
+from src.passwault.imagepass.embedder import Embedder
 
 session = {"logged_in": False}
 
@@ -33,7 +33,7 @@ def cli():
         register_parser.add_argument("-u", "--username", type=str, required=True, help="your username")
         register_parser.add_argument("-p", "--password", type=str, help="your password")
         register_parser.add_argument("-r", "--role", required=True, type=str, help="your role")
-        register_parser.set_defaults(func=lambda args: register(args.username, args.password, args.role))
+        register_parser.set_defaults(func=lambda args: register(args.username, args.password, args.role, session_manager))
 
         # login subcommand
         login_parser = subparsers.add_parser("login", help="login into the system")

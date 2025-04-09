@@ -1,24 +1,27 @@
 from datetime import datetime
 
-from passwault.core.utils.database import add_user, authentication, check_if_username_exists, get_role, get_user_id
-from passwault.core.utils.logger import Logger
-from passwault.core.utils.password import get_password_with_mask
-from passwault.core.utils.session_manager import SessionManager
+from src.passwault.core.utils.user_repository import UserRepository
+from src.passwault.core.utils.database import DatabaseConnector
+from src.passwault.core.utils.logger import Logger
+from src.passwault.core.utils.password import get_password_with_mask
+from src.passwault.core.utils.session_manager import SessionManager
 
 
-def register(username: str, password: str, role: str) -> None:
+def register(username: str, password: str, role: str, session_manager: SessionManager) -> None:
+    user_repo = UserRepository(session_manager.connector)
+    
     if password is None:
         password = get_password_with_mask()
 
-    user_exists = check_if_username_exists(username)
+    user_exists = user_repo.check_if_username_exists(username)
     if not user_exists.ok:
         Logger.error(user_exists.result)
 
-    if user_exists.result is not None:
+    if user_exists.result is True:
         Logger.info("This username is already taken. Please provide another.")
         return
 
-    response = add_user(username, password, role)
+    response = user_repo.register(username, password, role)
     if not response.ok:
         Logger.error(response.result)
         return
