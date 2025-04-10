@@ -1,13 +1,12 @@
 from datetime import datetime
 
 from src.passwault.core.utils.user_repository import UserRepository
-from src.passwault.core.utils.database import DatabaseConnector
 from src.passwault.core.utils.logger import Logger
 from src.passwault.core.utils.password import get_password_with_mask
 from src.passwault.core.utils.session_manager import SessionManager
 
 
-def register(username: str, password: str, role: str, session_manager: SessionManager) -> None:
+def register(username: str, password: str | None, role: str, session_manager: SessionManager) -> None:
     user_repo = UserRepository(session_manager.connector)
     
     if password is None:
@@ -30,26 +29,21 @@ def register(username: str, password: str, role: str, session_manager: SessionMa
 
 
 def login(username: str, password: str, session_manager: SessionManager) -> None:
-
+    user_repo = UserRepository(session_manager.connector)
     if password is None:
         password = get_password_with_mask()
 
-    response = authentication(username, password)
+    response = user_repo.authentication(username, password)
     if not response.ok:
         Logger.error(response.result)
         return
 
-    user_id_response = get_user_id(username)
-    if not user_id_response.ok:
-        Logger.error(user_id_response.result)
-        return
-
-    role_response = get_role(username)
+    role_response = user_repo.get_role(username)
     if not role_response.ok:
         Logger.error(role_response.result)
         return
 
-    user_data = {"id": user_id_response.result, "role": role_response.result, "time": datetime.now().isoformat()}
+    user_data = {"id": user_repo.id, "role": role_response.result, "time": datetime.now().isoformat()}
     session_manager.create_session(user_data)
     Logger.info("User logged in")
 
