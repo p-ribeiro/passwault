@@ -1,16 +1,16 @@
 from typing import List
 import bcrypt
-
 from src.passwault.core.utils import enums
 from src.passwault.core.utils.database import DatabaseConnector, IntegrityError
 from src.passwault.core.utils.local_types import Fail, Response, Success
+
 
 class UserRepository:
     def __init__(self, db_connector: DatabaseConnector):
         self.db = db_connector
         self.roles = enums.ROLES
-        self.user_id : int | None = None
-        
+        self.user_id: int | None = None
+
     def check_if_username_exists(self, username: str) -> Response[bool]:
         query = "SELECT 1 FROM users WHERE username = {};"
         query = query.format(self.db.get_placeholder_symbol())
@@ -19,7 +19,7 @@ class UserRepository:
 
     def register(self, username: str, password: str, role: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"""INSERT INTO users (username, password_hash, role) 
+        query = f"""INSERT INTO users (username, password_hash, role)
                     VALUES ({placeholder}, {placeholder}, {placeholder});
                 """
 
@@ -40,7 +40,7 @@ class UserRepository:
 
     def authentication(self, username: str, password: str) -> Response[int]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"""SELECT user_id, password_hash 
+        query = f"""SELECT user_id, password_hash
                     FROM users WHERE username=({placeholder});
                 """
 
@@ -63,7 +63,7 @@ class UserRepository:
     def authorization(self, username: str, required_role: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
         query = f"""SELECT role
-                    FROM users 
+                    FROM users
                     WHERE username=({placeholder});
                 """
 
@@ -81,7 +81,7 @@ class UserRepository:
                 return Fail("Not authorized")
         except Exception as e:
             return Fail(f"Error authorizing user: {e}")
-        
+
     def get_username(self) -> Response[str]:
         placeholder = self.db.get_placeholder_symbol()
         query = f"""
@@ -122,7 +122,7 @@ class UserRepository:
 
     def save_password(self, password: str, password_name: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"""INSERT INTO passwords (password_name, password, user_id) 
+        query = f"""INSERT INTO passwords (password_name, password, user_id)
                     VALUES ({placeholder}, {placeholder}, {placeholder});
                 """
 
@@ -135,8 +135,8 @@ class UserRepository:
 
     def get_password(self, password_name: str) -> Response[str]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"""SELECT password 
-                    FROM passwords 
+        query = f"""SELECT password
+                    FROM passwords
                     WHERE password_name={placeholder}
                     AND user_id={placeholder};
                 """
@@ -167,4 +167,3 @@ class UserRepository:
                 return Fail(f"There is not password for user: {self.id}")
         except Exception as e:
             return Fail(f"Error while retrieving all passwords: {e}")
-

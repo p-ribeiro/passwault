@@ -41,7 +41,7 @@ class SessionManager:
         self.root_path = Path(__file__).resolve().parents[3]
         self.session_file_path = self.root_path / session_file
         self.session = self._load_session()
-        
+
         db = SQLiteConnector("passwault.db")
         db.init_db()
         self.connector = db
@@ -55,6 +55,7 @@ class SessionManager:
     def _save_session(self):
         with open(self.session_file_path, "w") as sf:
             json.dump(self.session, sf)
+
     def _close_connector(self):
         self.connector.close()
 

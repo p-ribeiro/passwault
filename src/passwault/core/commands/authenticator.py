@@ -8,7 +8,7 @@ from src.passwault.core.utils.session_manager import SessionManager
 
 def register(username: str, password: str | None, role: str, session_manager: SessionManager) -> None:
     user_repo = UserRepository(session_manager.connector)
-    
+
     if password is None:
         password = get_password_with_mask()
 

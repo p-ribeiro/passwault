@@ -1,4 +1,1 @@
-ROLES = {
-    "admin": 1,
-    "user": 2
-    }
+ROLES = {"admin": 1, "user": 2}
