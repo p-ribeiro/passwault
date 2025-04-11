@@ -4,8 +4,6 @@ from datetime import datetime, timedelta
 from functools import wraps
 from os import path
 from pathlib import Path
-
-from src.passwault.core.utils.database import SQLiteConnector
 from src.passwault.core.utils.logger import Logger
 
 
@@ -42,10 +40,6 @@ class SessionManager:
         self.session_file_path = self.root_path / session_file
         self.session = self._load_session()
 
-        db = SQLiteConnector("passwault.db")
-        db.init_db()
-        self.connector = db
-
     def _load_session(self):
         if path.exists(self.session_file_path):
             with open(self.session_file_path, "r") as sf:
@@ -55,9 +49,6 @@ class SessionManager:
     def _save_session(self):
         with open(self.session_file_path, "w") as sf:
             json.dump(self.session, sf)
-
-    def _close_connector(self):
-        self.connector.close()
 
     def is_logged_in(self):
         return self.session is not None

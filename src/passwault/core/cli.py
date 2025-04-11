@@ -1,14 +1,14 @@
 import argparse
 import sys
 
+from src.passwault.core.utils.app_context import AppContext
 from src.passwault.core.commands.authenticator import login, logout, register
 from src.passwault.core.commands.password import generate_pw, load_pw, save_pw
 from src.passwault.core.utils.file_handler import valid_file, valid_image_file
 from src.passwault.core.utils.logger import Logger
-from src.passwault.core.utils.session_manager import SessionManager
 from src.passwault.imagepass.embedder import Embedder
 
-session = {"logged_in": False}
+# session = {"logged_in": False}
 
 
 def handle_imagepass(args, session_manager):
@@ -20,10 +20,7 @@ def handle_imagepass(args, session_manager):
         return embedder.decode(image_path=args.image_path, session_manager=session_manager)
 
 
-def cli():
-    session_manager = SessionManager()
-    session_manager.expire_session()
-
+def cli(ctx: AppContext):
     try:
         parser = argparse.ArgumentParser(description="""---- PASSWAULT: a password manager""")
         subparsers = parser.add_subparsers(help="Available commands")
@@ -33,17 +30,17 @@ def cli():
         register_parser.add_argument("-u", "--username", type=str, required=True, help="your username")
         register_parser.add_argument("-p", "--password", type=str, help="your password")
         register_parser.add_argument("-r", "--role", required=True, type=str, help="your role")
-        register_parser.set_defaults(func=lambda args: register(args.username, args.password, args.role, session_manager))
+        register_parser.set_defaults(func=lambda args: register(args.username, args.password, args.role, ctx.user_repo))
 
         # login subcommand
         login_parser = subparsers.add_parser("login", help="login into the system")
         login_parser.add_argument("-u", "--username", type=str, required=True, help="your username")
         login_parser.add_argument("-p", "--password", type=str, help="your password")
-        login_parser.set_defaults(func=lambda args: login(args.username, args.password, session_manager))
+        login_parser.set_defaults(func=lambda args: login(args.username, args.password, ctx.session_manager, ctx.user_repo))
 
         # logout subcommand
         logout_parser = subparsers.add_parser("logout", help="logout from the system")
-        logout_parser.set_defaults(func=lambda _: logout(session_manager))
+        logout_parser.set_defaults(func=lambda _: logout(ctx.session_manager))
 
         # generate subcommand
         generate_parser = subparsers.add_parser("generate", help="Generates a new password")
@@ -58,13 +55,13 @@ def cli():
         save_password_parser.add_argument("-p", "--password", type=str, help="the password to be saved")
         save_password_parser.add_argument("-n", "--password-name", type=str, help="the value identify the password")
         save_password_parser.add_argument("-f", "--file", type=valid_file, help="the file with the list of passswords")
-        save_password_parser.set_defaults(func=lambda args: save_pw(args.password, args.password_name, args.file, session_manager))
+        save_password_parser.set_defaults(func=lambda args: save_pw(args.password, args.password_name, args.file, ctx.user_repo))
 
         # load_password subcommand
         load_password_parser = subparsers.add_parser("load_password", help="Gets the password from database")
         load_password_parser.add_argument("-n", "--password-name", type=str, help="the password identifier")
         load_password_parser.add_argument("-a", "--all-passwords", action="store_true", help="return all passwords for user")
-        load_password_parser.set_defaults(func=lambda args: load_pw(args.password_name, args.all_passwords, session_manager))
+        load_password_parser.set_defaults(func=lambda args: load_pw(args.password_name, args.all_passwords, ctx.user_repo))
 
         # encode image with imagepass module
         imagepass_parser = subparsers.add_parser("imagepass", help="Encode or Decode passwords in Image")
@@ -75,7 +72,7 @@ def cli():
         )
         imagepass_parser.add_argument("image_path", type=valid_image_file, help="the image file")
         imagepass_parser.add_argument("-p", "--password", help="the password to be encoded")
-        imagepass_parser.set_defaults(func=lambda args: handle_imagepass(args, session_manager))
+        imagepass_parser.set_defaults(func=lambda args: handle_imagepass(args, ctx.user_repo))
 
         args = parser.parse_args()
 

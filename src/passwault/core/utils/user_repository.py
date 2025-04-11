@@ -9,7 +9,7 @@ class UserRepository:
     def __init__(self, db_connector: DatabaseConnector):
         self.db = db_connector
         self.roles = enums.ROLES
-        self.user_id: int | None = None
+        self.id: int | None = None
 
     def check_if_username_exists(self, username: str) -> Response[bool]:
         query = "SELECT 1 FROM users WHERE username = {};"
@@ -38,7 +38,7 @@ class UserRepository:
 
         return Success(None)
 
-    def authentication(self, username: str, password: str) -> Response[int]:
+    def authentication(self, username: str, password: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
         query = f"""SELECT user_id, password_hash
                     FROM users WHERE username=({placeholder});
@@ -54,7 +54,8 @@ class UserRepository:
             password_hash: str = user[1]
 
             if bcrypt.checkpw(password.encode('utf-8'), password_hash):
-                return Success(user_id)
+                self.id = user_id
+                return Success(None)
             else:
                 return Fail("Authentication failed")
         except Exception as e:

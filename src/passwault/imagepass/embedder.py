@@ -3,8 +3,8 @@ from pathlib import Path
 from random import choice
 from typing import List
 
-from passwault.core.utils.session_manager import SessionManager
-from passwault.imagepass.utils.utils import password_generator
+from src.passwault.core.utils.session_manager import SessionManager
+from src.passwault.imagepass.utils.utils import password_generator
 
 from .utils.image_handler import ImageHandler
 
