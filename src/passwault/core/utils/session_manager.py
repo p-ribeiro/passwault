@@ -11,16 +11,18 @@ def check_session(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
 
-        # lazy import of Embedder to avoid circular import
-        Embedder = importlib.import_module('passwault.imagepass.embedder').Embedder
+        # # lazy import of Embedder to avoid circular import
+        # Embedder = importlib.import_module('passwault.imagepass.embedder').Embedder
 
         if not args:
             raise ValueError("No positon arguments provided, session is missing")
 
-        if isinstance(args[0], Embedder):
-            session = kwargs["session_manager"]
-        else:
-            session = args[-1]
+        # if isinstance(args[0], Embedder):
+        #     session = kwargs["session_manager"]
+        # else:
+        #     session = args[-1]
+        
+        session = args[-1]
 
         if not isinstance(session, SessionManager):
             raise TypeError("Last object is not a session object")
@@ -60,7 +62,6 @@ class SessionManager:
     def logout(self):
         self.session = None
         self._save_session()
-        self._close_connector()
 
     def get_session(self):
         return self.session
