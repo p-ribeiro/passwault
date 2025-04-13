@@ -22,7 +22,7 @@ def check_session(func):
         # else:
         #     session = args[-1]
         
-        session = args[-1]
+        session = args[-1].session_manager
 
         if not isinstance(session, SessionManager):
             raise TypeError("Last object is not a session object")

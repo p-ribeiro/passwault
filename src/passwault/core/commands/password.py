@@ -1,16 +1,16 @@
 import re
 from random import choice
 
-from passwault.core.utils.database import get_all_passwords, get_password, save_password
-from passwault.core.utils.file_handler import read_file
-from passwault.core.utils.logger import Logger
-from passwault.core.utils.session_manager import SessionManager, check_session
+from src.passwault.core.utils.app_context import AppContext
+from src.passwault.core.utils.file_handler import read_file
+from src.passwault.core.utils.logger import Logger
+from src.passwault.core.utils.session_manager import SessionManager, check_session
 
 
 @check_session
-def save_pw(password: str, password_name: str, file: str, session_manager: SessionManager):
+def save_pw(password: str, password_name: str, file: str, ctx: AppContext):
 
-    session = session_manager.get_session()
+    session = ctx.session_manager.get_session()
     user_id = session["id"]
 
     if file:
@@ -20,7 +20,7 @@ def save_pw(password: str, password_name: str, file: str, session_manager: Sessi
             return
 
         for pw_name, pw in pw_pairs:
-            save_password(user_id, pw, pw_name)
+            ctx.user_repo.save_password(user_id, pw, pw_name)
 
         Logger.info("Successfully imported the password file")
         return
@@ -29,7 +29,7 @@ def save_pw(password: str, password_name: str, file: str, session_manager: Sessi
         Logger.error("You should insert a password with a password_name")
         return
 
-    response = save_password(user_id, password, password_name)
+    response = ctx.user_repo.save_password(user_id, password, password_name)
     if not response.ok:
         Logger.error(response.result)
         return
@@ -38,14 +38,14 @@ def save_pw(password: str, password_name: str, file: str, session_manager: Sessi
 
 
 @check_session
-def load_pw(password_name: str, all_passwords: bool, session_manager: SessionManager):
+def load_pw(password_name: str, all_passwords: bool, ctx: AppContext):
 
-    session = session_manager.get_session()
+    session = ctx.session_manager.get_session()
     user_id = session["id"]
 
     # return all passwords and return
     if all_passwords is True:
-        response = get_all_passwords(user_id)
+        response = ctx.user_repo.get_all_passwords(user_id)
         if not response.ok:
             Logger.error(response.result)
             return
@@ -54,7 +54,7 @@ def load_pw(password_name: str, all_passwords: bool, session_manager: SessionMan
         return
 
     # returns password
-    response = get_password(user_id, password_name)
+    response = ctx.user_repo.get_password(user_id, password_name)
     if not response.ok:
         Logger.error(response.result)
         return
