@@ -1,8 +1,8 @@
-import importlib
 import json
+from cryptography.fernet import Fernet
 from datetime import datetime, timedelta
 from functools import wraps
-from os import path
+from os import path, remove
 from pathlib import Path
 from src.passwault.core.utils.logger import Logger
 
@@ -21,7 +21,7 @@ def check_session(func):
         #     session = kwargs["session_manager"]
         # else:
         #     session = args[-1]
-        
+
         session = args[-1].session_manager
 
         if not isinstance(session, SessionManager):
@@ -38,19 +38,53 @@ def check_session(func):
 
 class SessionManager:
     def __init__(self, session_file=".session"):
-        self.root_path = Path(__file__).resolve().parents[3]
+        self.root_path = Path(__file__).resolve().parents[4]
         self.session_file_path = self.root_path / session_file
+        self.key_file_path = self.root_path / ".enckey"
         self.session = self._load_session()
 
+    def _create_secret_key(self):
+        if not path.isfile(self.key_file_path):
+            key = Fernet.generate_key()
+            with open(self.key_file_path, "wb") as f:
+                f.write(key)
+
+    def _get_secret_key(self):
+        with open(self.key_file_path) as f:
+            return f.read()
+
     def _load_session(self):
+
         if path.exists(self.session_file_path):
-            with open(self.session_file_path, "r") as sf:
-                return json.load(sf)
+
+            if not path.isfile(self.key_file_path):
+                raise Exception("Error loading sesssion. There is no secret key")
+
+            # retrieves encryption key
+            secret_key = self._get_secret_key()
+            fernet = Fernet(secret_key)
+
+            with open(self.session_file_path, "rb") as sf:
+                encrypted_session = sf.read()
+
+            decrypted_data = fernet.decrypt(encrypted_session)
+
+            return json.loads(decrypted_data.decode())
+
         return None
 
     def _save_session(self):
-        with open(self.session_file_path, "w") as sf:
-            json.dump(self.session, sf)
+
+        # creates an encryption key if not exists then retrieve it
+        self._create_secret_key()
+        secret_key = self._get_secret_key()
+        fernet = Fernet(secret_key)
+
+        # encrypt session
+        encrypted_session = fernet.encrypt(json.dumps(self.session).encode())
+
+        with open(self.session_file_path, "wb") as sf:
+            sf.write(encrypted_session)
 
     def is_logged_in(self):
         return self.session is not None
@@ -62,14 +96,14 @@ class SessionManager:
     def logout(self):
         self.session = None
         self._save_session()
+        remove(self.session_file_path)
 
     def get_session(self):
         return self.session
 
     def expire_session(self):
         if path.exists(self.session_file_path):
-            with open(self.session_file_path, "r") as sf:
-                session = json.load(sf)
+            session = self._load_session()
             if session:
                 time_difference = datetime.now() - datetime.fromisoformat(session["time"])
                 if time_difference >= timedelta(minutes=10):

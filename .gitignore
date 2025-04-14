@@ -15,6 +15,7 @@ htmlcov/
 coverage.json
 .pytest_cache/
 .session
+.enckey
 files/
 
 TODO
