@@ -80,7 +80,7 @@ class UserRepository:
         except Exception as e:
             return Fail(f"Error authorizing user: {e}")
 
-    def get_username(self, user_id:int) -> Response[str]:
+    def get_username(self, user_id: int) -> Response[str]:
         placeholder = self.db.get_placeholder_symbol()
         query = f"""
                 SELECT username
@@ -118,7 +118,7 @@ class UserRepository:
         except Exception as e:
             return Fail(f"Error getting user_role: {e}")
 
-    def save_password(self, user_id: int,  password: str, password_name: str) -> Response[None]:
+    def save_password(self, user_id: int, password: str, password_name: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
         query = f"""INSERT INTO passwords (password_name, password, user_id)
                     VALUES ({placeholder}, {placeholder}, {placeholder});

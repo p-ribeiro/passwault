@@ -61,7 +61,7 @@ def test_authentication(connector):
     response = user_repo.authentication("johndoe", "this_is_my_password")
 
     assert response.ok is True
-    assert response.result is 1
+    assert response.result == 1
 
 
 def test_authentication_wrong_pw(connector):

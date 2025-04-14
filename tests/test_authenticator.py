@@ -63,7 +63,7 @@ def test_register_fail(mock_logger, mock_get_password):
 @patch("src.passwault.core.commands.authenticator.Logger")
 def test_login_success(mock_logger, mock_get_password, mock_datetime):
     mock_ctx = MagicMock()
-    
+
     mock_connector = MagicMock()
     mock_session_manager = MagicMock()
     mock_session_manager.connector = mock_connector
@@ -75,7 +75,7 @@ def test_login_success(mock_logger, mock_get_password, mock_datetime):
     mock_user_repo.authentication.return_value.result = 13
     mock_user_repo.get_role.return_value.ok = True
     mock_user_repo.get_role.return_value.result = 1
-    
+
     mock_ctx.session_manager = mock_session_manager
     mock_ctx.user_repo = mock_user_repo
 
@@ -104,7 +104,6 @@ def test_login_not_authenticated(mock_logger, mock_get_password, mock_datetime):
 
     mock_ctx.user_repo = mock_user_repo
     mock_ctx.session_manager = mock_session_manager
-
 
     login("johndoe", None, mock_ctx)
 
