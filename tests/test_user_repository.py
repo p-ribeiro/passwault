@@ -1,6 +1,6 @@
-from src.passwault.core.utils import enums
-from src.passwault.core.utils.database import SQLiteConnector
-from src.passwault.core.utils.user_repository import UserRepository
+from passwault.core.utils import enums
+from passwault.core.utils.database import SQLiteConnector
+from passwault.core.utils.user_repository import UserRepository
 import pytest
 
 

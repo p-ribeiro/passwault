@@ -1,8 +1,8 @@
 from typing import List
 import bcrypt
-from src.passwault.core.utils import enums
-from src.passwault.core.utils.database import DatabaseConnector, IntegrityError
-from src.passwault.core.utils.local_types import Fail, Response, Success
+from passwault.core.utils import enums
+from passwault.core.utils.database import DatabaseConnector, IntegrityError
+from passwault.core.utils.local_types import Fail, Response, Success
 
 
 class UserRepository:

@@ -4,7 +4,7 @@
 
 # Run tests wiht pytest
 test:
-	PYTHONPATH=. poetry run pytest -s
+	poetry run pytest -s
 
 # Run flake8 for linting
 lint:

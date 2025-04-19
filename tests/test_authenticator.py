@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
-from src.passwault.core.commands.authenticator import register, login
+from passwault.core.commands.authenticator import register, login
 from unittest.mock import patch, MagicMock
 
 fake_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
-@patch("src.passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
-@patch("src.passwault.core.commands.authenticator.Logger")
+@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch("passwault.core.commands.authenticator.Logger")
 def test_register_success(mock_logger, mock_get_password):
     mock_ctx = MagicMock()
     mock_user_repo = MagicMock()
@@ -22,8 +22,8 @@ def test_register_success(mock_logger, mock_get_password):
     mock_logger.info.assert_called_with("User created.")
 
 
-@patch("src.passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
-@patch("src.passwault.core.commands.authenticator.Logger")
+@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch("passwault.core.commands.authenticator.Logger")
 def test_register_username_taken(mock_logger, mock_get_password):
     mock_ctx = MagicMock()
     mock_user_repo = MagicMock()
@@ -40,8 +40,8 @@ def test_register_username_taken(mock_logger, mock_get_password):
     mock_user_repo.register.assert_not_called()
 
 
-@patch("src.passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
-@patch("src.passwault.core.commands.authenticator.Logger")
+@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch("passwault.core.commands.authenticator.Logger")
 def test_register_fail(mock_logger, mock_get_password):
     mock_ctx = MagicMock()
     mock_user_repo = MagicMock()
@@ -58,9 +58,9 @@ def test_register_fail(mock_logger, mock_get_password):
     mock_logger.error.assert_called_with("Error while registering")
 
 
-@patch("src.passwault.core.commands.authenticator.datetime")
-@patch("src.passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
-@patch("src.passwault.core.commands.authenticator.Logger")
+@patch("passwault.core.commands.authenticator.datetime")
+@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch("passwault.core.commands.authenticator.Logger")
 def test_login_success(mock_logger, mock_get_password, mock_datetime):
     mock_ctx = MagicMock()
 
@@ -87,9 +87,9 @@ def test_login_success(mock_logger, mock_get_password, mock_datetime):
     mock_logger.info.assert_called_once_with("User logged in")
 
 
-@patch("src.passwault.core.commands.authenticator.datetime")
-@patch("src.passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
-@patch("src.passwault.core.commands.authenticator.Logger")
+@patch("passwault.core.commands.authenticator.datetime")
+@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch("passwault.core.commands.authenticator.Logger")
 def test_login_not_authenticated(mock_logger, mock_get_password, mock_datetime):
     mock_ctx = MagicMock()
     mock_connector = MagicMock()
@@ -113,9 +113,9 @@ def test_login_not_authenticated(mock_logger, mock_get_password, mock_datetime):
     mock_logger.error.assert_called_once_with("Authentication failed")
 
 
-@patch("src.passwault.core.commands.authenticator.datetime")
-@patch("src.passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
-@patch("src.passwault.core.commands.authenticator.Logger")
+@patch("passwault.core.commands.authenticator.datetime")
+@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch("passwault.core.commands.authenticator.Logger")
 def test_login_role_not_found(mock_logger, mock_get_password, mock_datetime):
     mock_ctx = MagicMock()
     mock_connector = MagicMock()

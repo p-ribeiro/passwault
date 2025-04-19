@@ -1,6 +1,6 @@
-from src.passwault.core.utils import enums
+from passwault.core.utils import enums
 import pytest
-from src.passwault.core.utils.database import IntegrityError, SQLiteConnector
+from passwault.core.utils.database import IntegrityError, SQLiteConnector
 
 
 @pytest.fixture

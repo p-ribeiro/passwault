@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from os import path, remove
 from pathlib import Path
-from src.passwault.core.utils.logger import Logger
+from passwault.core.utils.logger import Logger
 
 
 def check_session(func):

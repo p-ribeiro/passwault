@@ -1,7 +1,7 @@
-from src.passwault.core.utils.app_context import AppContext
-from src.passwault.core.utils.session_manager import SessionManager
-from src.passwault.core.utils.database import SQLiteConnector
-from src.passwault.core.cli import cli
+from passwault.core.utils.app_context import AppContext
+from passwault.core.utils.session_manager import SessionManager
+from passwault.core.utils.database import SQLiteConnector
+from passwault.core.cli import cli
 
 
 def main():

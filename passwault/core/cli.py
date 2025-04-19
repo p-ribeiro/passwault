@@ -1,12 +1,12 @@
 import argparse
 import sys
 
-from src.passwault.core.utils.app_context import AppContext
-from src.passwault.core.commands.authenticator import login, logout, register
-from src.passwault.core.commands.password import generate_pw, load_pw, save_pw
-from src.passwault.core.utils.file_handler import valid_file, valid_image_file
-from src.passwault.core.utils.logger import Logger
-from src.passwault.imagepass.embedder import Embedder
+from passwault.core.utils.app_context import AppContext
+from passwault.core.commands.authenticator import login, logout, register
+from passwault.core.commands.password import generate_pw, load_pw, save_pw
+from passwault.core.utils.file_handler import valid_file, valid_image_file
+from passwault.core.utils.logger import Logger
+from passwault.imagepass.embedder import Embedder
 
 # session = {"logged_in": False}
 

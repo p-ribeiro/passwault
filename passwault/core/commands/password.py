@@ -1,10 +1,10 @@
 import re
 from random import choice
 
-from src.passwault.core.utils.app_context import AppContext
-from src.passwault.core.utils.file_handler import read_file
-from src.passwault.core.utils.logger import Logger
-from src.passwault.core.utils.session_manager import check_session
+from passwault.core.utils.app_context import AppContext
+from passwault.core.utils.file_handler import read_file
+from passwault.core.utils.logger import Logger
+from passwault.core.utils.session_manager import check_session
 
 
 @check_session

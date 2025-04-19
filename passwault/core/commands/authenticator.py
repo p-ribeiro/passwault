@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from src.passwault.core.utils.app_context import AppContext
-from src.passwault.core.utils.logger import Logger
-from src.passwault.core.utils.password import get_password_with_mask
+from passwault.core.utils.app_context import AppContext
+from passwault.core.utils.logger import Logger
+from passwault.core.utils.password import get_password_with_mask
 
 
 def register(username: str, password: str | None, role: str, ctx: AppContext) -> None:

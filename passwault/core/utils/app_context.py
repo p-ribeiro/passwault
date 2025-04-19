@@ -1,6 +1,6 @@
-from src.passwault.core.utils.user_repository import UserRepository
-from src.passwault.core.utils.database import SQLiteConnector
-from src.passwault.core.utils.session_manager import SessionManager
+from passwault.core.utils.user_repository import UserRepository
+from passwault.core.utils.database import SQLiteConnector
+from passwault.core.utils.session_manager import SessionManager
 
 
 class AppContext:
