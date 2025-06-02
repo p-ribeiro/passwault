@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import sqlite3
+from pysqlcipher3 import dbapi2 as sqlite3
 from typing import Any, Generic, Optional, TypeVar, Union
 
 
@@ -91,6 +91,7 @@ class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
 
     def connect(self) -> 'SQLiteConnector':
         self.connection = sqlite3.connect(self.db_path)
+        self.connection.execute("PRAGMA key = 'myP4ssW0rd';")
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.cursor = self.connection.cursor()
         return self
@@ -109,6 +110,7 @@ class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
         query_create_passwords = """
             CREATE TABLE IF NOT EXISTS passwords (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NULL,
                 password_name TEXT NOT NULL,
                 password TEXT NOT NULL,
                 user_id INTEGER NOT NULL,

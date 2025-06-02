@@ -53,9 +53,10 @@ def cli(ctx: AppContext):
         # save_password subcommand
         save_password_parser = subparsers.add_parser("save_password", help="Saves a new password to database")
         save_password_parser.add_argument("-p", "--password", type=str, help="the password to be saved")
+        save_password_parser.add_argument("-u", "--username", type=str, default=None, help="the username or email related to this password")
         save_password_parser.add_argument("-n", "--password-name", type=str, help="the value identify the password")
         save_password_parser.add_argument("-f", "--file", type=valid_file, help="the file with the list of passswords")
-        save_password_parser.set_defaults(func=lambda args: save_pw(args.password, args.password_name, args.file, ctx))
+        save_password_parser.set_defaults(func=lambda args: save_pw(args.username, args.password, args.password_name, args.file, ctx))
 
         # load_password subcommand
         load_password_parser = subparsers.add_parser("load_password", help="Gets the password from database")

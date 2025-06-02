@@ -125,7 +125,7 @@ def test_get_role(connector):
 def test_save_password_to_user(connector):
     user_repo = create_default_user(connector)
     user_id = 1
-    response = user_repo.save_password(user_id, "thehardestpassword", "mybank")
+    response = user_repo.save_password(user_id, "email@email.com", "thehardestpassword", "mybank")
     assert response.ok is True
     assert response.result is None
 
@@ -133,18 +133,18 @@ def test_save_password_to_user(connector):
 def test_get_password(connector):
     user_repo = create_default_user(connector)
     user_id = 1
-    response = user_repo.save_password(user_id, "thehardestpassword", "mybank")
+    response = user_repo.save_password(user_id, "email@email.com","thehardestpassword", "mybank")
     assert response.ok is True
 
     response = user_repo.get_password(user_id, "mybank")
     assert response.ok is True
-    assert response.result == "thehardestpassword"
+    assert response.result == ("email@email.com", "mybank", "thehardestpassword")
 
 
 def test_get_password_not_found(connector):
     user_repo = create_default_user(connector)
     user_id = 1
-    response = user_repo.save_password(user_id, "thehardestpassword", "mybank")
+    response = user_repo.save_password(user_id, "email@email.com","thehardestpassword", "mybank")
     assert response.ok is True
 
     response = user_repo.get_password(user_id, "not_mybank")
@@ -155,22 +155,22 @@ def test_get_password_not_found(connector):
 def test_get_all_passwords(connector):
     user_repo = create_default_user(connector)
     user_id = 1
-    user_repo.save_password(user_id, "thehardestpassword1", "mybank1")
-    user_repo.save_password(user_id, "thehardestpassword2", "mybank2")
-    user_repo.save_password(user_id, "thehardestpassword3", "mybank3")
-    user_repo.save_password(user_id, "thehardestpassword4", "mybank4")
-    user_repo.save_password(user_id, "thehardestpassword5", "mybank5")
-    user_repo.save_password(user_id, "thehardestpassword6", "mybank6")
-    user_repo.save_password(user_id, "thehardestpassword7", "mybank7")
+    user_repo.save_password(user_id, "email1@email.com", "thehardestpassword1", "mybank1")
+    user_repo.save_password(user_id, "email2@email.com", "thehardestpassword2", "mybank2")
+    user_repo.save_password(user_id, "email3@email.com", "thehardestpassword3", "mybank3")
+    user_repo.save_password(user_id, "email4@email.com", "thehardestpassword4", "mybank4")
+    user_repo.save_password(user_id, "email5@email.com", "thehardestpassword5", "mybank5")
+    user_repo.save_password(user_id, "email6@email.com", "thehardestpassword6", "mybank6")
+    user_repo.save_password(user_id, "email7@email.com", "thehardestpassword7", "mybank7")
 
     response = user_repo.get_all_passwords(user_id)
     assert response.ok is True
     assert response.result == [
-        ("mybank1", "thehardestpassword1"),
-        ("mybank2", "thehardestpassword2"),
-        ("mybank3", "thehardestpassword3"),
-        ("mybank4", "thehardestpassword4"),
-        ("mybank5", "thehardestpassword5"),
-        ("mybank6", "thehardestpassword6"),
-        ("mybank7", "thehardestpassword7"),
+        ("email1@email.com", "mybank1", "thehardestpassword1"),
+        ("email2@email.com", "mybank2", "thehardestpassword2"),
+        ("email3@email.com", "mybank3", "thehardestpassword3"),
+        ("email4@email.com", "mybank4", "thehardestpassword4"),
+        ("email5@email.com", "mybank5", "thehardestpassword5"),
+        ("email6@email.com", "mybank6", "thehardestpassword6"),
+        ("email7@email.com", "mybank7", "thehardestpassword7"),
     ]

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Tuple
 
-ALLOWED_EXT = ['.csv', '.txt', '.json']
+ALLOWED_EXT = ['.csv','.json']
 
 VALID_IMAGE_EXTENSIONS = ['.jpg', '.png', '.gif', '.jpeg', '.tiff', '.bmp']
 
@@ -57,43 +57,40 @@ def _read_csv(file_path: Path):
     except Exception as e:
         raise ValueError(f"Error with '{file_path.name}': {str(e)}")
 
+def _read_json(file_path: Path):
+    try:
+        result = []
+        with open(file_path, "r") as f:
+            data = json.load(f)
+            for k, v in data.items():
+                if 'password' not in v or v['password'] == "":
+                    raise Exception('password is missing or empty.')
+                if 'username' not in v:
+                    raise Exception('the field password is missing.')
+                if v['username'] == '':
+                    v['username'] = None
+                
+                result.append((v['username'], v['password'], k))
+                
+        return result
+            
+            
+    except Exception as e:
+        raise ValueError(f"Error with '{file_path.name}': {str(e)}")
+
+
 
 def read_file(file: str) -> Tuple[Tuple[str, str]] | None:
     file_path = Path(file)
     file_suffix = file_path.suffix
 
-    if file_suffix == ".txt":
-        ...
+
 
     if file_suffix == ".csv":
         result = _read_csv(file_path)
         return result
 
     if file_suffix == ".json":
-        try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-                password_names = list(data.keys())
-                passwords = list(data.values())
-
-                if password_names == [] or passwords == []:
-                    return None
-
-                return tuple(zip(password_names, passwords))
-
-        except Exception as e:
-            raise ValueError(f"Error with '{file_path.name}': {str(e)}")
-
-
-if __name__ == "__main__":
-    file = "/home/jd/passvault-project/files/passwords.json"
-
-    try:
-        result = read_file(file)
-        if result is None:
-            print('empty')
-            exit(0)
-        pn, p = result
-        print(pn, p)
-    except ValueError as e:
-        print(e)
+        result = _read_json(file_path)
+        return result
+       

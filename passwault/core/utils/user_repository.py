@@ -1,4 +1,3 @@
-from typing import List
 import bcrypt
 from passwault.core.utils import enums
 from passwault.core.utils.database import DatabaseConnector, IntegrityError
@@ -118,14 +117,14 @@ class UserRepository:
         except Exception as e:
             return Fail(f"Error getting user_role: {e}")
 
-    def save_password(self, user_id: int, password: str, password_name: str) -> Response[None]:
+    def save_password(self, user_id: int, pw_username:str, password: str, password_name: str) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"""INSERT INTO passwords (password_name, password, user_id)
-                    VALUES ({placeholder}, {placeholder}, {placeholder});
+        query = f"""INSERT INTO passwords (password_name, password, username, user_id)
+                    VALUES ({placeholder}, {placeholder}, {placeholder},{placeholder});
                 """
 
         try:
-            self.db.execute_query(query, (password_name, password, user_id))
+            self.db.execute_query(query, (password_name, password, pw_username, user_id))
         except Exception as e:
             return Fail(f"Error while saving password: {e}")
 
@@ -133,17 +132,17 @@ class UserRepository:
 
     def get_password(self, user_id: int, password_name: str) -> Response[str]:
         placeholder = self.db.get_placeholder_symbol()
-        query = f"""SELECT password
+        query = f"""SELECT username, password_name, password
                     FROM passwords
                     WHERE password_name={placeholder}
                     AND user_id={placeholder};
                 """
 
         try:
-            password: str = self.db.fetch_one(query, (password_name, user_id))
+            password: list[str] = self.db.fetch_one(query, (password_name, user_id))
 
             if password:
-                return Success(password[0])
+                return Success(password)
             else:
                 return Fail("Password not found")
         except Exception as e:
@@ -152,13 +151,13 @@ class UserRepository:
     def get_all_passwords(self, user_id: int) -> Response[list[str]]:
         placeholder = self.db.get_placeholder_symbol()
         query = f"""
-                SELECT password_name, password
+                SELECT username, password_name, password
                 FROM passwords
                 WHERE user_id=({placeholder});
                 """
 
         try:
-            passwords: List[str] = self.db.fetch_all(query, (user_id,))
+            passwords: list[str] = self.db.fetch_all(query, (user_id,))
             if len(passwords) > 0:
                 return Success(passwords)
             else:
