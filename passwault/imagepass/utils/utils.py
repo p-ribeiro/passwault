@@ -2,7 +2,9 @@ from random import choice
 from typing import List
 
 
-def password_generator(len: int, has_symbols: bool, has_digits: bool, has_uppercase: bool) -> str:
+def password_generator(
+    len: int, has_symbols: bool, has_digits: bool, has_uppercase: bool
+) -> str:
 
     SYMBOLS_RANGE = [33, 38]
     DIGITS_RANGE = [48, 57]

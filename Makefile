@@ -4,19 +4,19 @@
 
 # Run tests wiht pytest
 test:
-	poetry run pytest -s
+	uv run pytest -s
 
 # Run flake8 for linting
 lint:
-	poetry run flake8 src tests
+	uv run flake8 passwault tests
 
 # Format code using black
 format:
-	poetry run black src tests
+	uv run black passwault tests
 
 # Check formatting without making changes
 check:
-	poetry run black --check src tests
+	uv run black --check passwault tests
 
 # Remove __pycache__ and .pyc files
 clean:

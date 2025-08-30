@@ -1,10 +1,11 @@
 import base64
 from pathlib import Path
 from random import choice
-from typing import List
+from typing import List, Optional
 
 from passwault.core.utils.session_manager import SessionManager
 from passwault.imagepass.utils.utils import password_generator
+from pytest import Session
 
 from .utils.image_handler import ImageHandler
 
@@ -15,11 +16,17 @@ BYTE_SIZE = 8
 
 
 class Embedder:
-    def __init__(self) -> None:
-        self.image_path = None
+    def __init__(
+        self, image_path: str, session_manager: Optional[SessionManager] = None
+    ) -> None:
+        self.image_path = Path(image_path)
         self.password = None
         self.session = None
         self.user_id = None
+
+        if session_manager:
+            self.session = session_manager.get_session()
+            self.user_id = self.session["id"] if self.session else None
 
     def _create_header(self, bands: list[str], key: str) -> str:
 
@@ -28,7 +35,7 @@ class Embedder:
 
         header = "-".join(bands) + "|" + key
 
-        return START_OF_HEADER + base64.b64encode(header.encode()).decode('ascii')
+        return START_OF_HEADER + base64.b64encode(header.encode()).decode("ascii")
 
     def _get_header(self, band_values: List[int]) -> str | None:
         def _chunks_of_eight(lst: List[int]):
@@ -60,7 +67,9 @@ class Embedder:
             yield ord(key[cnt % key_size])
             cnt += 1
 
-    def _insert_message_lsb(self, source_bytes: bytes, target_bytes: List[int], key: str) -> None:
+    def _insert_message_lsb(
+        self, source_bytes: bytes, target_bytes: List[int], key: str
+    ) -> None:
         """In-place embedding of each bit of `source_bytes` into the least significant bit (LSB) of `target_bytes`.
 
         Args:
@@ -96,7 +105,7 @@ class Embedder:
                 else:
                     bit_idx += next(keyed_spacer)
 
-    def _retrieve_message_lsb(self, source_bytes: List[int], key: str) -> None:
+    def _retrieve_message_lsb(self, source_bytes: List[int], key: str) -> Optional[str]:
 
         keyed_spacer = self._key_spacing_generator(key)
         is_message = False
@@ -126,13 +135,7 @@ class Embedder:
                 source_bit_idx += 1
 
     # @check_session
-    def decode(self, image_path: str, session_manager: SessionManager = None):
-
-        self.image_path = Path(image_path)
-        if session_manager:
-            self.session = session_manager.get_session()
-            self.user_id = self.session["id"]
-
+    def decode(self):
         image_handler = ImageHandler(self.image_path)
         for band in image_handler.bands.keys():
             band_values = image_handler.get_band_values(band)
@@ -140,19 +143,14 @@ class Embedder:
             header = self._get_header(band_values)
 
             if header:
-                header_decoded = base64.b64decode(header.encode('ascii')).decode()
-                bands, key = header_decoded.split('|')
+                header_decoded = base64.b64decode(header.encode("ascii")).decode()
+                bands, key = header_decoded.split("|")
                 password = self._retrieve_message_lsb(band_values, key)
-                print("The retrieved password is: " + password)
+                print(f"The retrieved password is: {password}")
 
     # @check_session
-    def encode(self, image_path: str, password: str, session_manager: SessionManager = None):
-
-        self.image_path = Path(image_path)
+    def encode(self, password: str):
         self.password = password
-        if session_manager:
-            self.session = session_manager.get_session()
-            self.user_id = self.session["id"]
 
         image_handler = ImageHandler(self.image_path)
         band_values = {}
@@ -162,7 +160,9 @@ class Embedder:
             band = choice(list(image_handler.bands.keys()))
             band_values[band] = image_handler.get_band_values(band)
 
-            key = password_generator(len=10, has_symbols=True, has_digits=True, has_uppercase=True)
+            key = password_generator(
+                len=10, has_symbols=True, has_digits=True, has_uppercase=True
+            )
 
             header = self._create_header([band], key)
             message = header + START_OF_MESSAGE + self.password + END_OF_MESSAGE

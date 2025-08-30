@@ -24,10 +24,12 @@ class UserRepository:
         if role.lower() not in self.roles:
             return Fail("This role is invalid")
 
-        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
         try:
-            self.db.execute_query(query, (username, password_hash, enums.ROLES[role.lower()]))
+            self.db.execute_query(
+                query, (username, password_hash, enums.ROLES[role.lower()])
+            )
         except IntegrityError:
             return Fail("User already exists")
         except Exception as e:
@@ -50,7 +52,7 @@ class UserRepository:
             user_id: str = int(user[0])
             password_hash: str = user[1]
 
-            if bcrypt.checkpw(password.encode('utf-8'), password_hash):
+            if bcrypt.checkpw(password.encode("utf-8"), password_hash):
                 return Success(user_id)
             else:
                 return Fail("Authentication failed")
@@ -117,14 +119,18 @@ class UserRepository:
         except Exception as e:
             return Fail(f"Error getting user_role: {e}")
 
-    def save_password(self, user_id: int, pw_username:str, password: str, password_name: str) -> Response[None]:
+    def save_password(
+        self, user_id: int, pw_username: str, password: str, password_name: str
+    ) -> Response[None]:
         placeholder = self.db.get_placeholder_symbol()
         query = f"""INSERT INTO passwords (password_name, password, username, user_id)
                     VALUES ({placeholder}, {placeholder}, {placeholder},{placeholder});
                 """
 
         try:
-            self.db.execute_query(query, (password_name, password, pw_username, user_id))
+            self.db.execute_query(
+                query, (password_name, password, pw_username, user_id)
+            )
         except Exception as e:
             return Fail(f"Error while saving password: {e}")
 

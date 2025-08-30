@@ -5,7 +5,10 @@ from unittest.mock import patch, MagicMock
 fake_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
-@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch(
+    "passwault.core.commands.authenticator.get_password_with_mask",
+    return_value="fake_password",
+)
 @patch("passwault.core.commands.authenticator.Logger")
 def test_register_success(mock_logger, mock_get_password):
     mock_ctx = MagicMock()
@@ -22,7 +25,10 @@ def test_register_success(mock_logger, mock_get_password):
     mock_logger.info.assert_called_with("User created.")
 
 
-@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch(
+    "passwault.core.commands.authenticator.get_password_with_mask",
+    return_value="fake_password",
+)
 @patch("passwault.core.commands.authenticator.Logger")
 def test_register_username_taken(mock_logger, mock_get_password):
     mock_ctx = MagicMock()
@@ -36,11 +42,16 @@ def test_register_username_taken(mock_logger, mock_get_password):
     register("johndoe", None, "user", mock_ctx)
 
     mock_user_repo.check_if_username_exists.assert_called_once_with("johndoe")
-    mock_logger.info.assert_called_with("This username is already taken. Please provide another.")
+    mock_logger.info.assert_called_with(
+        "This username is already taken. Please provide another."
+    )
     mock_user_repo.register.assert_not_called()
 
 
-@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch(
+    "passwault.core.commands.authenticator.get_password_with_mask",
+    return_value="fake_password",
+)
 @patch("passwault.core.commands.authenticator.Logger")
 def test_register_fail(mock_logger, mock_get_password):
     mock_ctx = MagicMock()
@@ -59,7 +70,10 @@ def test_register_fail(mock_logger, mock_get_password):
 
 
 @patch("passwault.core.commands.authenticator.datetime")
-@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch(
+    "passwault.core.commands.authenticator.get_password_with_mask",
+    return_value="fake_password",
+)
 @patch("passwault.core.commands.authenticator.Logger")
 def test_login_success(mock_logger, mock_get_password, mock_datetime):
     mock_ctx = MagicMock()
@@ -83,12 +97,17 @@ def test_login_success(mock_logger, mock_get_password, mock_datetime):
 
     mock_user_repo.authentication.assert_called_once_with("johndoe", "fake_password")
     mock_user_repo.get_role.assert_called_once()
-    mock_session_manager.create_session.assert_called_once_with({"id": 13, "role": 1, "time": fake_time.isoformat()})
+    mock_session_manager.create_session.assert_called_once_with(
+        {"id": 13, "role": 1, "time": fake_time.isoformat()}
+    )
     mock_logger.info.assert_called_once_with("User logged in")
 
 
 @patch("passwault.core.commands.authenticator.datetime")
-@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch(
+    "passwault.core.commands.authenticator.get_password_with_mask",
+    return_value="fake_password",
+)
 @patch("passwault.core.commands.authenticator.Logger")
 def test_login_not_authenticated(mock_logger, mock_get_password, mock_datetime):
     mock_ctx = MagicMock()
@@ -114,7 +133,10 @@ def test_login_not_authenticated(mock_logger, mock_get_password, mock_datetime):
 
 
 @patch("passwault.core.commands.authenticator.datetime")
-@patch("passwault.core.commands.authenticator.get_password_with_mask", return_value="fake_password")
+@patch(
+    "passwault.core.commands.authenticator.get_password_with_mask",
+    return_value="fake_password",
+)
 @patch("passwault.core.commands.authenticator.Logger")
 def test_login_role_not_found(mock_logger, mock_get_password, mock_datetime):
     mock_ctx = MagicMock()

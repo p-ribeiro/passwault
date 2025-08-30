@@ -16,10 +16,18 @@ class Logger:
 
     @staticmethod
     def info(message: str) -> None:
-        print(f'{Colors.GREEN.value}[INFO] {Logger._current_timestamp()} - {message}{Colors.RESET.value}')
+        print(
+            f"{Colors.GREEN.value}[INFO] {Logger._current_timestamp()} - {message}{Colors.RESET.value}"
+        )
 
+    @staticmethod
     def error(message: str) -> None:
-        print(f'{Colors.RED.value}[ERROR] {Logger._current_timestamp()} - {message}{Colors.RESET.value}')
+        print(
+            f"{Colors.RED.value}[ERROR] {Logger._current_timestamp()} - {message}{Colors.RESET.value}"
+        )
 
+    @staticmethod
     def debug(message: str) -> None:
-        print(f'{Colors.YELLOW.value}[DEBUG] {Logger._current_timestamp()} - {message}{Colors.RESET.value}')
+        print(
+            f"{Colors.YELLOW.value}[DEBUG] {Logger._current_timestamp()} - {message}{Colors.RESET.value}"
+        )

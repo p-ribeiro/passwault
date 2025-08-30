@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from pysqlcipher3 import dbapi2 as sqlite3
-from typing import Any, Generic, Optional, TypeVar, Union
+from sqlcipher3 import dbapi2 as sqlite3
+from typing import Any, Generic, Optional, Protocol, TypeVar, Union
 
 
 class DatabaseError(Exception):
@@ -15,35 +15,43 @@ class ConnectionError(DatabaseError):
     pass
 
 
-T = TypeVar('T')
+class CursorProtocol(Protocol):
+    def execute(self, query: str, params: Any = ...) -> Any: ...
+
+
+T = TypeVar("T", bound=CursorProtocol)
 
 
 class DatabaseConnector(ABC, Generic[T]):
 
     connection: Any
-    cursor: T
+    cursor: Optional[T]
 
     def __init__(self) -> None:
         self.connection = None
         self.cursor = None
 
     @abstractmethod
-    def connect(self):
-        pass
+    def connect(self) -> "DatabaseConnector": ...
 
     @abstractmethod
-    def _map_exception(self, exception):
-        pass
+    def _map_exception(
+        self, exception
+    ) -> Optional[Union[IntegrityError, ConnectionError]]: ...
 
     def execute_query(self, query: str, params: Optional[tuple] = None) -> T:
+        if self.cursor is None:
+            raise RuntimeError("Cursor not initalized. call connect first.")
         try:
             if params:
                 self.cursor.execute(query, params)
             else:
                 self.cursor.execute(query)
+
             self.connection.commit()
 
             return self.cursor
+
         except Exception as e:
             # Map the exception to our custom hierarchy
             mapped_exception = self._map_exception(e)
@@ -57,23 +65,20 @@ class DatabaseConnector(ABC, Generic[T]):
     #     pass
 
     @abstractmethod
-    def fetch_all(self, query: str, params: Optional[tuple] = None) -> list[Any]:
-        pass
+    def fetch_all(self, query: str, params: Optional[tuple] = None) -> list[Any]: ...
 
     @abstractmethod
-    def fetch_one(self, query: str, params: Optional[tuple] = None) -> Any:
-        pass
+    def fetch_one(self, query: str, params: Optional[tuple] = None) -> Any: ...
 
     @abstractmethod
-    def get_placeholder_symbol(self):
-        pass
+    def get_placeholder_symbol(self) -> str: ...
 
     def close(self):
         if self.connection:
             self.connection.close()
 
 
-SQLiteCursor = TypeVar('SQLiteCursor', bound='sqlite3.Cursor')
+SQLiteCursor = TypeVar("SQLiteCursor", bound="sqlite3.Cursor")  # type: ignore
 
 
 class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
@@ -82,16 +87,18 @@ class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
         super().__init__()
         self.db_path = db_path
 
-    def _map_exception(self, exception) -> Union[IntegrityError, ConnectionError]:
-        if isinstance(exception, sqlite3.IntegrityError):
+    def _map_exception(
+        self, exception
+    ) -> Optional[Union[IntegrityError, ConnectionError]]:
+        if isinstance(exception, sqlite3.IntegrityError):  # type: ignore
             if "UNIQUE constraint failed" in str(exception):
                 return IntegrityError(f"Record already exists: {str(exception)}")
 
         return None
 
-    def connect(self) -> 'SQLiteConnector':
-        self.connection = sqlite3.connect(self.db_path)
-        self.connection.execute("PRAGMA key = 'myP4ssW0rd';")
+    def connect(self) -> "SQLiteConnector":
+        self.connection = sqlite3.connect(self.db_path)  # type: ignore
+        # self.connection.execute("PRAGMA key = 'myP4ssW0rd';")
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.cursor = self.connection.cursor()
         return self
@@ -118,6 +125,9 @@ class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
             );
             """
 
+        if self.cursor is None:
+            raise RuntimeError("Cursor not initalized. call connect first.")
+
         self.cursor.execute(query_create_users)
         self.cursor.execute(query_create_passwords)
 
@@ -125,11 +135,17 @@ class SQLiteConnector(DatabaseConnector[SQLiteCursor]):
 
     def fetch_one(self, query: str, params: Optional[tuple] = None) -> Any:
         self.execute_query(query, params)
+        if self.cursor is None:
+            raise RuntimeError("Cursor not initalized. call connect first.")
+
         return self.cursor.fetchone()
 
     def fetch_all(self, query: str, params: Optional[tuple] = None) -> list[Any]:
         self.execute_query(query, params)
+        if self.cursor is None:
+            raise RuntimeError("Cursor not initalized. call connect first.")
+
         return self.cursor.fetchall()
 
-    def get_placeholder_symbol(self):
+    def get_placeholder_symbol(self) -> str:
         return "?"

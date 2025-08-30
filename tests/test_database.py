@@ -31,8 +31,14 @@ def test_insert_and_fetch_user(connector):
 
 
 def test_fetch_all_returns_multiple_rows(connector):
-    connector.execute_query("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", ("johndoe", "mypw", enums.ROLES["admin"]))
-    connector.execute_query("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", ("jane", "janegotagun", enums.ROLES["user"]))
+    connector.execute_query(
+        "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+        ("johndoe", "mypw", enums.ROLES["admin"]),
+    )
+    connector.execute_query(
+        "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+        ("jane", "janegotagun", enums.ROLES["user"]),
+    )
 
     users = connector.fetch_all("SELECT * FROM users")
 
@@ -40,8 +46,14 @@ def test_fetch_all_returns_multiple_rows(connector):
 
 
 def test_integrity_error_mapping(connector):
-    connector.execute_query("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", ("johndoe", "mypw", enums.ROLES["admin"]))
+    connector.execute_query(
+        "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+        ("johndoe", "mypw", enums.ROLES["admin"]),
+    )
 
     with pytest.raises(IntegrityError) as exc:
-        connector.execute_query("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", ("johndoe", "anotherpw", enums.ROLES["user"]))
+        connector.execute_query(
+            "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+            ("johndoe", "anotherpw", enums.ROLES["user"]),
+        )
     assert "already exists" in str(exc.value)

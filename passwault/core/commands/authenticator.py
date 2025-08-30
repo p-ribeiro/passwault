@@ -38,7 +38,11 @@ def login(username: str, password: str, ctx: AppContext) -> None:
         Logger.error(role_response.result)
         return
 
-    user_data = {"id": user_id, "role": role_response.result, "time": datetime.now().isoformat()}
+    user_data = {
+        "id": user_id,
+        "role": role_response.result,
+        "time": datetime.now().isoformat(),
+    }
     ctx.session_manager.create_session(user_data)
     Logger.info("User logged in")
 

@@ -8,7 +8,9 @@ from passwault.core.utils.session_manager import check_session
 
 
 @check_session
-def save_pw(pw_username: str, password: str, password_name: str, file: str, ctx: AppContext):
+def save_pw(
+    pw_username: str, password: str, password_name: str, file: str, ctx: AppContext
+):
 
     session = ctx.session_manager.get_session()
     user_id = session["id"]
@@ -29,7 +31,9 @@ def save_pw(pw_username: str, password: str, password_name: str, file: str, ctx:
         Logger.error("You should insert a password with a password_name")
         return
 
-    response = ctx.user_repo.save_password(user_id, pw_username, password, password_name)
+    response = ctx.user_repo.save_password(
+        user_id, pw_username, password, password_name
+    )
     if not response.ok:
         Logger.error(response.result)
         return
@@ -63,7 +67,12 @@ def load_pw(password_name: str, all_passwords: bool, ctx: AppContext):
     print(f"Password for '{password_name}' > {pw[0] or '<no username>'} : {pw[2]}")
 
 
-def generate_pw(password_length: int, has_symbols: bool = True, has_digits: bool = True, has_uppercase: bool = True) -> None:
+def generate_pw(
+    password_length: int,
+    has_symbols: bool = True,
+    has_digits: bool = True,
+    has_uppercase: bool = True,
+) -> None:
 
     MAX_ITER = 10
     SYMBOLS_RANGE = [33, 38]

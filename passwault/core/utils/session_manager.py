@@ -105,6 +105,8 @@ class SessionManager:
         if path.exists(self.session_file_path):
             session = self._load_session()
             if session:
-                time_difference = datetime.now() - datetime.fromisoformat(session["time"])
+                time_difference = datetime.now() - datetime.fromisoformat(
+                    session["time"]
+                )
                 if time_difference >= timedelta(minutes=10):
                     self.logout()

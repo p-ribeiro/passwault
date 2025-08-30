@@ -42,7 +42,7 @@ class ImageHandler:
         with Image.open(self.image_path) as im:
             bands = im.split()
 
-        modified_band_image = Image.new('L', (self.width, self.height))
+        modified_band_image = Image.new("L", (self.width, self.height))
         modified_band_image.putdata(band_values)
 
         print(list(modified_band_image.getdata())[:8])  # Print first 10 pixels
@@ -50,13 +50,21 @@ class ImageHandler:
         try:
             match band:
                 case "R":
-                    modified_image = Image.merge("RGB", (modified_band_image, bands[1], bands[2]))
+                    modified_image = Image.merge(
+                        "RGB", (modified_band_image, bands[1], bands[2])
+                    )
                 case "G":
-                    modified_image = Image.merge("RGB", (bands[0], modified_band_image, bands[2]))
+                    modified_image = Image.merge(
+                        "RGB", (bands[0], modified_band_image, bands[2])
+                    )
                 case "B":
-                    modified_image = Image.merge("RGB", (bands[0], bands[1], modified_band_image))
+                    modified_image = Image.merge(
+                        "RGB", (bands[0], bands[1], modified_band_image)
+                    )
                 case "A":
-                    modified_image = Image.merge("RGBA", (bands[0], bands[1], bands[2], modified_band_image))
+                    modified_image = Image.merge(
+                        "RGBA", (bands[0], bands[1], bands[2], modified_band_image)
+                    )
 
             modified_image.save(f"results/enc_{self.image_name}.png", format="PNG")
 
