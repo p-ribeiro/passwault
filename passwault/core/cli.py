@@ -12,21 +12,21 @@ from passwault.imagepass.embedder import Embedder
 
 
 def handle_imagepass(args, session_manager):
-
-    embedder = Embedder()
+    embedder = Embedder(args.image_path, session_manager)
     if args.option == "encode":
-        return embedder.encode(
-            image_path=args.image_path,
-            password=args.password,
-            session_manager=session_manager,
-        )
+        return embedder.encode(password=args.password)
     else:
-        return embedder.decode(
-            image_path=args.image_path, session_manager=session_manager
-        )
+        return embedder.decode()
 
+def validate_save_pw_args(args, parser):
+    # if file is given, p/n must not be required
+    if args.file:
+        return
+    # otherwise need both p and n
+    if not args.password or not args.password_name:
+        parser.error("when not using -f/--file, both -p/--password and -n/--password-name are required")
 
-def cli(ctx: AppContext):
+def cli(ctx: AppContext, args=None):
     try:
         parser = argparse.ArgumentParser(
             description="""---- PASSWAULT: a password manager"""
@@ -101,8 +101,11 @@ def cli(ctx: AppContext):
             "-f", "--file", type=valid_file, help="the file with the list of passswords"
         )
         save_password_parser.set_defaults(
-            func=lambda args: save_pw(
+            func=lambda args: (
+                validate_save_pw_args(args, save_password_parser),   
+                save_pw(
                 args.username, args.password, args.password_name, args.file, ctx
+                )
             )
         )
 
@@ -140,14 +143,16 @@ def cli(ctx: AppContext):
         )
         imagepass_parser.set_defaults(func=lambda args: handle_imagepass(args, ctx))
 
-        args = parser.parse_args()
+        parsed_args = parser.parse_args(args)
 
-        if len(sys.argv) == 1:
-            Logger.error("No arguments provided. Please specify at least one argument.")
-            parser.print_help()
-            return
-
-        args.func(args)
+        if hasattr(parsed_args, "func"):
+            return parsed_args.func(parsed_args)
+        parser.print_help()
+        # if len(sys.argv) == 1:
+        #     Logger.error("No arguments provided. Please specify at least one argument.")
+        #     parser.print_help()
+        #     return
+        # parsed_args.func(parsed_args)
 
     except argparse.ArgumentError as e:
-        Logger.error(e)
+        Logger.error(str(e))

@@ -9,7 +9,7 @@ ALLOWED_EXT = [".csv", ".json"]
 VALID_IMAGE_EXTENSIONS = [".jpg", ".png", ".gif", ".jpeg", ".tiff", ".bmp"]
 
 
-def valid_image_file(file: str) -> bool:
+def valid_image_file(file: str) -> str:
     image_file_path = Path(file)
 
     if not image_file_path.exists():
@@ -23,7 +23,7 @@ def valid_image_file(file: str) -> bool:
     return file
 
 
-def valid_file(file: str) -> bool:
+def valid_file(file: str) -> str:
     file_path = Path(file)
 
     if not file_path.exists():
