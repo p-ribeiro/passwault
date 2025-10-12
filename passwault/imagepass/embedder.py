@@ -1,7 +1,9 @@
 import base64
 from pathlib import Path
 from random import choice
+import struct
 from typing import List, Optional
+import zlib
 
 from passwault.core.utils.session_manager import SessionManager
 from passwault.imagepass.utils.utils import password_generator
@@ -27,12 +29,71 @@ class Embedder:
             self.session = session_manager.get_session()
             self.user_id = self.session["id"] if self.session else None
 
-    def _create_header(self, bands: list[str], key: str) -> str:
-        # header format
-        # <band>[-<band>]|<key>
-        header = "-".join(bands) + "|" + key
+    def _read_header(self, header: bytes):
+        marker, band_mask, key_len, msg_len, algo = struct.unpack(">IBBIB", header[:11])
+        
+        key = header[11 : 11+key_len]
+        header_crc_stored = header[11+key_len : 11+key_len+4]
+        
+        # validate CRC
+        header_without_crc = header[:11+key_len]
+        header_crc_calc = zlib.crc32(header_without_crc).to_bytes(4, "big")
+        if header_crc_calc != header_crc_stored:
+            raise ValueError("Header CRC mismatch!")
+        
+        return {
+            "marker": marker,
+            "band_mask": band_mask,
+            "key": key,
+            "msg_len": msg_len,
+            "algo": algo
+        }
 
-        return START_OF_HEADER + base64.b64encode(header.encode()).decode("ascii")
+    def _create_header(self, bands: list[str], key: str) -> bytes:
+        
+        # bands == 0b00000001
+        ## creating the band mask
+        r = "R" in bands
+        g = "G" in bands
+        b = "B" in bands
+        a = "A" in bands
+        bands_byte = (r<<0) | (g<<1) | (b<<2) | (a << 3)
+        
+        
+        header_struct = {
+            "MARKER": 0xDEADCAFE,       # 4 bytes
+            "BAND_MASK": bands_byte,    # 1 bytes (b0=R,b1=G,b2=B,b3=A)
+            "KEY_LEN": len(key),        # 1 byte
+            "MESSAGE_LEN": 10,          # 4 bytes
+            "ALG_ID": 1,                # 1 byte
+            "KEY": key,        # KEY_LEN bytes
+            "HEADER_CRC": 0x123456      # 4 bytes
+        }
+
+        header_fixed = struct.pack(">IBBIB", 
+                              header_struct["MARKER"],
+                              header_struct["BAND_MASK"],
+                              header_struct["KEY_LEN"],
+                              header_struct["MESSAGE_LEN"],
+                              header_struct["ALG_ID"]
+                        )
+        
+        header_without_crc = header_fixed + header_struct["KEY"].encode()
+        
+        # compute the CRC32
+        header_crc = zlib.crc32(header_without_crc).to_bytes(4, "big")
+        
+        final_header = header_without_crc + header_crc
+        
+      
+        return final_header
+        
+        
+        # # header format
+        # # <band>[-<band>]|<key>
+        # header = "-".join(bands) + "|" + key
+
+        # return START_OF_HEADER + base64.b64encode(header.encode()).decode("ascii")
 
     def _get_header(self, band_values: List[int]) -> str | None:
         def _chunks_of_eight(lst: List[int]):
@@ -52,6 +113,7 @@ class Embedder:
                 continue
 
             if encoded_byte_chr == START_OF_MESSAGE:
+                print(header)
                 return header
 
             header += encoded_byte_chr

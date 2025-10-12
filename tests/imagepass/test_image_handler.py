@@ -55,7 +55,10 @@ def test_replace_band_R(tmp_image_rgb, new_band_values):
     image_handler = ImageHandler(tmp_image_rgb)
     image_handler.replace_band("R", new_band_values)
     
-    red_band_values = image_handler.get_band_values("R")
+    # open result image
+    result_filename = f"{image_handler.image_name + "." + image_handler.image_suffix}"
+    result_image_handler = ImageHandler(image_handler.result_dir/result_filename)
+    red_band_values = result_image_handler.get_band_values("R")
     
     assert 111 == red_band_values[10]
 
@@ -63,15 +66,21 @@ def test_replace_band_G(tmp_image_rgb, new_band_values):
     image_handler = ImageHandler(tmp_image_rgb)
     image_handler.replace_band("G", new_band_values)
     
-    green_band_values = image_handler.get_band_values("G")
+    # open result image
+    result_filename = f"{image_handler.image_name + "." + image_handler.image_suffix}"
+    result_image_handler = ImageHandler(image_handler.result_dir/result_filename)
+    green_band_values = result_image_handler.get_band_values("G")
     
     assert 111 == green_band_values[10]
 
 def test_replace_band_B(tmp_image_rgb, new_band_values):
     image_handler = ImageHandler(tmp_image_rgb)
     image_handler.replace_band("B", new_band_values)
-    
-    blue_band_values = image_handler.get_band_values("B")
+   
+    # open result image
+    result_filename = f"{image_handler.image_name + "." + image_handler.image_suffix}"
+    result_image_handler = ImageHandler(image_handler.result_dir/result_filename)
+    blue_band_values = result_image_handler.get_band_values("B")
     
     assert 111 == blue_band_values[10]
 
@@ -79,7 +88,10 @@ def test_replace_band_A(tmp_image_rgba, new_band_values):
     image_handler = ImageHandler(tmp_image_rgba)
     image_handler.replace_band("A", new_band_values)
     
-    alpha_band_values = image_handler.get_band_values("A")
+    # open result image
+    result_filename = f"{image_handler.image_name + "." + image_handler.image_suffix}"
+    result_image_handler = ImageHandler(image_handler.result_dir/result_filename)
+    alpha_band_values = result_image_handler.get_band_values("A")
     
     assert 111 == alpha_band_values[10]
 
