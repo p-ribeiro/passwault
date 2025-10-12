@@ -93,4 +93,4 @@ def read_file(file: str) -> Tuple[Tuple[str, str]] | None:
 
     if file_suffix == ".json":
         result = _read_json(file_path)
-        return result
+        return result #type: ignore

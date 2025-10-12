@@ -1,12 +1,13 @@
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from PIL import Image
 
 
 class ImageHandler:
-    def __init__(self, image_path: Path) -> None:
+    def __init__(self, image_path: Path, output_dir: Optional[Path] = None) -> None:
         self.image_path: Path = image_path
+        self.result_dir: Path = output_dir or Path(__file__).resolve().parents[3] / "data" / "results"
         self.image_name: str = image_path.stem
         self.image_suffix: str = image_path.suffix.split(".")[1]
         self.width, self.height = self._get_image_dimensions()
@@ -39,6 +40,9 @@ class ImageHandler:
 
     def replace_band(self, band: str, band_values: List[int]):
         # only works for PNG / lossless images
+
+        if band not in self.bands.keys():
+            raise ValueError(f"Band '{band}' is not valid")
       
         with Image.open(self.image_path) as im:
             if im.format in ["JPEG"]:
@@ -69,7 +73,10 @@ class ImageHandler:
                     )
                 case _:
                     return
-            modified_image.save(self.image_path, format=self.image_suffix)
+            
+            result_filename = f"{self.image_name + "." + self.image_suffix}"
+            modified_image.save(self.result_dir / result_filename, format=self.image_suffix)
 
         except Exception as e:
             print(e)
+

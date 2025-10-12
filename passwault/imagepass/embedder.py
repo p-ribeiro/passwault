@@ -5,7 +5,6 @@ from typing import List, Optional
 
 from passwault.core.utils.session_manager import SessionManager
 from passwault.imagepass.utils.utils import password_generator
-from pytest import Session
 
 from .utils.image_handler import ImageHandler
 
@@ -29,10 +28,8 @@ class Embedder:
             self.user_id = self.session["id"] if self.session else None
 
     def _create_header(self, bands: list[str], key: str) -> str:
-
         # header format
         # <band>[-<band>]|<key>
-
         header = "-".join(bands) + "|" + key
 
         return START_OF_HEADER + base64.b64encode(header.encode()).decode("ascii")
@@ -151,7 +148,7 @@ class Embedder:
     # @check_session
     def encode(self, password: str):
         self.password = password
-
+        
         image_handler = ImageHandler(self.image_path)
         band_values = {}
         if len(self.password) < image_handler.size:
@@ -170,7 +167,7 @@ class Embedder:
             self._insert_message_lsb(message.encode(), band_values[band], key)
 
             image_handler.replace_band(band, band_values[band])
-
+            
         else:
             # WIP
             pass
