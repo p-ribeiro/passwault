@@ -14,7 +14,7 @@ from passwault.imagepass.embedder import Embedder
 def handle_imagepass(args, session_manager):
     embedder = Embedder(args.image_path, session_manager)
     if args.option == "encode":
-        return embedder.encode(password=args.password)
+        return embedder.encode(message=args.password)
     else:
         return embedder.decode()
 
