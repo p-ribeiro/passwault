@@ -1,5 +1,6 @@
 from click import BadArgumentUsage
 from passwault.imagepass.embedder import Embedder
+from passwault.imagepass.utils.utils import key_generator
 
 def test_create_bands_byte_rgb(tmp_image_rgb):
     embedder = Embedder(tmp_image_rgb)
@@ -34,22 +35,26 @@ def test_create_bands_byte_bw(tmp_image_bw):
 
 
 def test_header_size(tmp_image_rgb):
+    # header must be a fixed 24 bytes
+    
     embedder = Embedder(tmp_image_rgb)
     key = "123TESTKEY" # 10 bytes
-    
-    header = embedder._create_header(key)
-    assert len(header) == 25
+    message= "This is my message to the world, but it should be hidden"
+    header = embedder._create_header(key, len(message))
+    assert len(header) == 24
 
 def test_unpack_header(tmp_image_rgb):
     embedder = Embedder(tmp_image_rgb)
-    key = "Th1sIsMy|Test|Key"
-    header = embedder._create_header(key)
     
-    header_read = embedder._upack_header(header)
+    key = key_generator()
+    message= "This is my message to the world, but it should be hidden"
+    header_bytes = embedder._create_header(key, len(message))
     
-    print(header_read)
-    assert header_read["key"].decode() == key
+    header = embedder._unpack_header(header_bytes)
+    assert header.key.decode() == key
+    assert header.band_mask == int(0b0000111)
+    assert header.message_len == len(message)
+    assert header.marker == 0xDEADCAFE
     
     
-    
-    
+

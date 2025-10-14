@@ -2,18 +2,16 @@ import base64
 from pathlib import Path
 from random import choice
 import struct
-from typing import List, Optional
+from typing import Any, List, Optional
 import zlib
 
 from passwault.core.utils.session_manager import SessionManager
-from passwault.imagepass.utils.utils import password_generator
+from passwault.imagepass import config
+from passwault.imagepass.struct import Header
+from passwault.imagepass.utils.utils import key_generator
 
 from .utils.image_handler import ImageHandler
 
-START_OF_HEADER = chr(1)
-START_OF_MESSAGE = chr(2)
-END_OF_MESSAGE = chr(3)
-BYTE_SIZE = 8
 
 
 class Embedder:
@@ -22,7 +20,7 @@ class Embedder:
     ) -> None:
         self.image_path = Path(image_path)
         self.image_handler = ImageHandler(self.image_path)
-        self.password = None
+        self.message = None
         self.session = None
         self.user_id = None
 
@@ -46,53 +44,51 @@ class Embedder:
         return bands_bitmask
         
 
-    def _upack_header(self, header: bytes):
-        marker, band_mask, key_len, msg_len, algo = struct.unpack(">IBBIB", header[:11])
+    def _unpack_header(self, header: bytes) -> Header:
+        marker, band_mask, msg_len, algo, key = struct.unpack(">IBIB10s", header[:config.HEADER_LEN - 4])
         
-        key = header[11 : 11+key_len]
-        header_crc_stored = header[11+key_len : 11+key_len+4]
+        header_crc_stored = header[config.HEADER_LEN - 4 : config.HEADER_LEN]
         
         # validate CRC
-        header_without_crc = header[:11+key_len]
+        header_without_crc = header[:config.HEADER_LEN - 4]
         header_crc_calc = zlib.crc32(header_without_crc).to_bytes(4, "big")
         if header_crc_calc != header_crc_stored:
             raise ValueError("Header CRC mismatch!")
         
-        return {
-            "marker": marker,
-            "band_mask": band_mask,
-            "key": key,
-            "msg_len": msg_len,
-            "algo": algo
-        }
+        
+        
+        return Header(
+            marker=marker,
+            band_mask=band_mask,
+            message_len=msg_len,
+            algo_id = algo,
+            key=key
+        )
 
     def _create_header(self, key: str, msg_len: int) -> bytes:
         
-        bands_bitmask = self._create_bands_bitmask()
-        msg_len_bytes = msg_len.to_bytes(4, "big")
+        header: Header = Header(
+            marker=config.MARKER,
+            band_mask=self._create_bands_bitmask(),
+            message_len=msg_len,
+            algo_id=1,
+            key=key.encode()
+        )
 
-
-        header_struct = {
-            "MARKER": '\xDE\xAD\xCA\xFE',   # 4 bytes
-            "BAND_MASK": bands_bitmask,     # 1 bytes (b0=R,b1=G,b2=B,b3=A)
-            "MESSAGE_LEN": msg_len_bytes,   # 4 bytes
-            "ALG_ID": 1,                    # 1 byte
-            "KEY": key,                     # 10 bytes
-            "HEADER_CRC": 0x123456          # 4 bytes
-        }
-
-        header_fixed = struct.pack(">IBBIB", 
-                              header_struct["MARKER"],
-                              header_struct["BAND_MASK"],
-                              header_struct["MESSAGE_LEN"],
-                              header_struct["ALG_ID"],
-                              header_struct["KEY"]
+        # packing the header dataclass into 20 bytes
+        header_fixed = struct.pack(">IBIB10s", 
+                            header.marker,
+                            header.band_mask,
+                            header.message_len,
+                            header.algo_id,
+                            header.key
                         )
     
         
         # compute the CRC32
         header_crc = zlib.crc32(header_fixed).to_bytes(4, "big")
         
+        # 24 bytes
         final_header = header_fixed + header_crc
       
         return final_header
@@ -103,9 +99,6 @@ class Embedder:
             for i in range(0, len(lst), 8):
                 yield lst[i : i + 8]
 
-        MARKER = b'\xDE\xAD\xCA\xFE'
-        HEADER_LEN = 14 # Header has a fixed size of 14 bytes
-        
         header_bytes_buffer = b''
         
         for byte_chunk in _chunks_of_eight(band_values):
@@ -119,18 +112,12 @@ class Embedder:
             
             ## check marker after the first 4 bytes
             # if marker is not found, the value is not here or is corrupted
-            if header_bytes_buffer[:4] != MARKER:
+            if header_bytes_buffer[:4] != config.MARKER:
                 return None
 
-            if len(header_bytes_buffer) == HEADER_LEN:
+            if len(header_bytes_buffer) == config.HEADER_LEN:
                 return header_bytes_buffer
             
-
-            
-
-            
-            
-
     @staticmethod
     def _key_spacing_generator(key: str):
         cnt = 0
@@ -170,7 +157,7 @@ class Embedder:
                     else:
                         target_bytes[bit_idx] &= ~1  # clear LSB to 0
         
-                if len(last_byte) == BYTE_SIZE:
+                if len(last_byte) == config.BYTE_SIZE:
                     last_byte = ""
             
                 bit_idx += 1
@@ -189,81 +176,76 @@ class Embedder:
                     else:
                         target_bytes[bit_idx] &= ~1  # clear LSB to 0
         
-                if len(last_byte) == BYTE_SIZE:
+                if len(last_byte) == config.BYTE_SIZE:
                     last_byte = ""
             
                 bit_idx += next(keyed_spacer)
 
-    def _retrieve_message_lsb(self, source_bytes: List[int], key: str) -> Optional[str]:
+    def _retrieve_message_lsb(self,
+                              source_bytes: List[int],
+                              key: str,
+                              msg_len: int
+                            ) -> Optional[str]:
 
         keyed_spacer = self._key_spacing_generator(key)
         source_bit_idx = 0
         decoded_byte = ""
         result = ""
         
-        header = self._get_header_bytes(source_bytes)
-        if not header:
-            raise ValueError("Header not found")
-        
-        header_decoded = self._upack_header(header)
-        
-        message_len = header_decoded["msg_len"]
-
         # get message
-        
         while source_bit_idx < len(source_bytes):
             bit = source_bytes[source_bit_idx] & 1
             decoded_byte += str(bit)
 
             source_bit_idx += next(keyed_spacer)
             
-            if len(decoded_byte) == BYTE_SIZE:
+            if len(decoded_byte) == config.BYTE_SIZE:
                 decoded_byte_chr = chr(int(decoded_byte, 2))
                 result += decoded_byte_chr
                 decoded_byte = ""
-            if len(result) == message_len:
+            if len(result) == msg_len:
                 return result
             
 
     # @check_session
-    def decode(self):
+    def decode(self) -> Optional[str]:
         for band in self.image_handler.bands.keys():
             band_values = self.image_handler.get_band_values(band)
 
-            header = self._get_header_bytes(band_values)
+            header_bytes = self._get_header_bytes(band_values)
 
-            if header:
-                header_decoded = base64.b64decode(header.encode("ascii")).decode()
-                bands, key = header_decoded.split("|")
-                password = self._retrieve_message_lsb(band_values, key)
-                print(f"The retrieved password is: {password}")
+            if header_bytes:
+                header = self._unpack_header(header_bytes)
+                message = self._retrieve_message_lsb(
+                    band_values[config.HEADER_LEN:],
+                    header.key.decode(),
+                    header.message_len
+                )
+                return message
+
+            return None
+                
+                
 
     # @check_session
     def encode(self, message: str):
-        self.password = message
+        self.message = message
         
         band_values = {}
-        if len(self.password) < self.image_handler.size:
+        if len(self.message) < self.image_handler.size:
             # only one band is necessary (default for passwords)
             # but the band is chosen at random
             band = choice(list(self.image_handler.bands.keys()))
             band_values[band] = self.image_handler.get_band_values(band)
 
             # the key is always 10 chars long
-            key = password_generator(
-                len=10,
-                has_symbols=True,
-                has_digits=True,
-                has_uppercase=True
-            )
+            key = key_generator()
     
             header = self._create_header(key, len(message))
-            
             msg_crc = zlib.crc32(message.encode()).to_bytes(4, 'big')
+            payload = message.encode() + msg_crc 
             
-            payload = header + message.encode() + msg_crc 
-            
-            self._insert_message_lsb(payload, band_values[band], key)
+            self._insert_message_lsb(header, payload, band_values[band], key)
 
             self.image_handler.replace_band(band, band_values[band])
             
