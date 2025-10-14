@@ -112,8 +112,10 @@ class Embedder:
             
             ## check marker after the first 4 bytes
             # if marker is not found, the value is not here or is corrupted
-            if header_bytes_buffer[:4] != config.MARKER:
-                return None
+            if len(header_bytes_buffer) == 4:
+                header_marker_int = int.from_bytes(header_bytes_buffer[:4], "big")
+                if header_marker_int != config.MARKER:
+                    return None
 
             if len(header_bytes_buffer) == config.HEADER_LEN:
                 return header_bytes_buffer
@@ -140,7 +142,6 @@ class Embedder:
             target_bytes (List[int]): the bytearray into which the source bytes will be embedded.
         """
 
-        last_byte = ""
         target_lenght = len(target_bytes)
         bit_idx = 0
         
@@ -148,38 +149,34 @@ class Embedder:
         for byte in header:
             for bit_pos in range(7, -1, -1):
                 bit = byte >> bit_pos & 1
-                last_byte += str(bit)
-
+                
                 if bit_idx < target_lenght:
 
                     if bit:
                         target_bytes[bit_idx] |= 1  # set LSB to 1
                     else:
                         target_bytes[bit_idx] &= ~1  # clear LSB to 0
-        
-                if len(last_byte) == config.BYTE_SIZE:
-                    last_byte = ""
             
                 bit_idx += 1
 
+        ##########################################################
+        # starting bit_idx from 192 (24 * 8)
         # add the payload with the key spacing
         keyed_spacer = self._key_spacing_generator(key)
         for byte in payload:
+            # breaking the byte into bits to add to LSB of target
             for bit_pos in range(7, -1, -1):
                 bit = byte >> bit_pos & 1
-                last_byte += str(bit)
 
                 if bit_idx < target_lenght:
-
                     if bit:
                         target_bytes[bit_idx] |= 1  # set LSB to 1
                     else:
                         target_bytes[bit_idx] &= ~1  # clear LSB to 0
-        
-                if len(last_byte) == config.BYTE_SIZE:
-                    last_byte = ""
-            
+                
                 bit_idx += next(keyed_spacer)
+
+                
 
     def _retrieve_message_lsb(self,
                               source_bytes: List[int],
@@ -188,7 +185,7 @@ class Embedder:
                             ) -> Optional[str]:
 
         keyed_spacer = self._key_spacing_generator(key)
-        source_bit_idx = 0
+        source_bit_idx = config.HEADER_LEN * config.BYTE_SIZE
         decoded_byte = ""
         result = ""
         
@@ -196,15 +193,16 @@ class Embedder:
         while source_bit_idx < len(source_bytes):
             bit = source_bytes[source_bit_idx] & 1
             decoded_byte += str(bit)
-
-            source_bit_idx += next(keyed_spacer)
             
             if len(decoded_byte) == config.BYTE_SIZE:
                 decoded_byte_chr = chr(int(decoded_byte, 2))
                 result += decoded_byte_chr
                 decoded_byte = ""
+                
             if len(result) == msg_len:
                 return result
+            
+            source_bit_idx += next(keyed_spacer)
             
 
     # @check_session
@@ -217,13 +215,13 @@ class Embedder:
             if header_bytes:
                 header = self._unpack_header(header_bytes)
                 message = self._retrieve_message_lsb(
-                    band_values[config.HEADER_LEN:],
+                    band_values,
                     header.key.decode(),
                     header.message_len
                 )
                 return message
 
-            return None
+        return None
                 
                 
 

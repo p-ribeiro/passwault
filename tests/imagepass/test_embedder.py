@@ -2,6 +2,9 @@ from click import BadArgumentUsage
 from passwault.imagepass.embedder import Embedder
 from passwault.imagepass.utils.utils import key_generator
 
+MESSAGE = "This is my message to the world, but it should be hidden"
+
+
 def test_create_bands_byte_rgb(tmp_image_rgb):
     embedder = Embedder(tmp_image_rgb)
     bands_bitmask = embedder._create_bands_bitmask()
@@ -38,23 +41,36 @@ def test_header_size(tmp_image_rgb):
     # header must be a fixed 24 bytes
     
     embedder = Embedder(tmp_image_rgb)
-    key = "123TESTKEY" # 10 bytes
-    message= "This is my message to the world, but it should be hidden"
-    header = embedder._create_header(key, len(message))
+    key = key_generator()
+    header = embedder._create_header(key, len(MESSAGE))
     assert len(header) == 24
 
 def test_unpack_header(tmp_image_rgb):
     embedder = Embedder(tmp_image_rgb)
     
     key = key_generator()
-    message= "This is my message to the world, but it should be hidden"
-    header_bytes = embedder._create_header(key, len(message))
+    header_bytes = embedder._create_header(key, len(MESSAGE))
     
     header = embedder._unpack_header(header_bytes)
     assert header.key.decode() == key
     assert header.band_mask == int(0b0000111)
-    assert header.message_len == len(message)
+    assert header.message_len == len(MESSAGE)
     assert header.marker == 0xDEADCAFE
+    
+
+def test_insert_header_lsb(tmp_image_rgb):
+    embedder = Embedder(tmp_image_rgb)
+    test_bytes = [255] * 30_000
+    key = key_generator() 
+    
+    # header has 24 * 8 = 192
+    header = embedder._create_header(key, len(MESSAGE))
+    
+    payload = header + MESSAGE.encode()
+    
+    embedder._insert_message_lsb(header, payload, test_bytes, key)
+    
+    assert test_bytes != [255] * 30_000
     
     
 
