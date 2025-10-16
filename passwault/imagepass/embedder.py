@@ -35,8 +35,6 @@ class Embedder:
         """Bitmask for R/G/B/A/L channels\n
         (b0=R, b1=G, b2=B, b3=A, b4=L)
         """
-        
-        
         r = "R" in self.image_handler.bands
         g = "G" in self.image_handler.bands
         b = "B" in self.image_handler.bands

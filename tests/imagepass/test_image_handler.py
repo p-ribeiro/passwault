@@ -1,4 +1,5 @@
 from hmac import new
+from tkinter import Image
 import pytest
 from passwault.imagepass.utils.image_handler import ImageHandler
 
@@ -53,46 +54,38 @@ def test_band_values(tmp_image_rgb):
 
 def test_replace_band_R(tmp_image_rgb, new_band_values):
     image_handler = ImageHandler(tmp_image_rgb)
-    image_handler.replace_band("R", new_band_values)
+    result_image = image_handler.replace_band("R", new_band_values)
+
+    assert result_image is not None
     
-    # open result image
-    result_filename = f"{image_handler.image_name + "." + image_handler.image_suffix}"
-    result_image_handler = ImageHandler(image_handler.result_dir/result_filename)
-    red_band_values = result_image_handler.get_band_values("R")
-    
+    red_band_values = result_image.getdata(0) 
     assert 111 == red_band_values[10]
 
 def test_replace_band_G(tmp_image_rgb, new_band_values):
     image_handler = ImageHandler(tmp_image_rgb)
-    image_handler.replace_band("G", new_band_values)
+    result_image = image_handler.replace_band("G", new_band_values)
     
-    # open result image
-    result_filename = f"{image_handler.image_name + "." + image_handler.image_suffix}"
-    result_image_handler = ImageHandler(image_handler.result_dir/result_filename)
-    green_band_values = result_image_handler.get_band_values("G")
+    assert result_image is not None
     
+    green_band_values = result_image.getdata(1)
     assert 111 == green_band_values[10]
 
 def test_replace_band_B(tmp_image_rgb, new_band_values):
     image_handler = ImageHandler(tmp_image_rgb)
-    image_handler.replace_band("B", new_band_values)
+    result_image = image_handler.replace_band("B", new_band_values)
    
-    # open result image
-    result_filename = f"{image_handler.image_name + "." + image_handler.image_suffix}"
-    result_image_handler = ImageHandler(image_handler.result_dir/result_filename)
-    blue_band_values = result_image_handler.get_band_values("B")
+    assert result_image is not None
     
+    blue_band_values = result_image.getdata(2)
     assert 111 == blue_band_values[10]
 
 def test_replace_band_A(tmp_image_rgba, new_band_values):
     image_handler = ImageHandler(tmp_image_rgba)
-    image_handler.replace_band("A", new_band_values)
+    result_image = image_handler.replace_band("A", new_band_values)
     
-    # open result image
-    result_filename = f"{image_handler.image_name + "." + image_handler.image_suffix}"
-    result_image_handler = ImageHandler(image_handler.result_dir/result_filename)
-    alpha_band_values = result_image_handler.get_band_values("A")
+    assert result_image is not None
     
+    alpha_band_values = result_image.getdata(3) 
     assert 111 == alpha_band_values[10]
 
 def test_replace_band_invalid_band_value(tmp_image_rgb, new_band_values):
@@ -109,5 +102,20 @@ def test_replace_band_raise_exception(tmp_image_rgb_jpeg, new_band_values):
         image_handler.replace_band("G", new_band_values)
 
  
-         
+def test_save_image_to_file(tmp_image_rgb, tmp_path, new_band_values):
+    output_dir = tmp_path / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    image_handler = ImageHandler(tmp_image_rgb, output_dir)
+    
+    result_image = image_handler.replace_band("R", new_band_values)
+    assert result_image is not None
+    
+    # asserting that the file does not exist yet
+    assert not (output_dir / "test_rgb.png").exists()
+    
+    image_handler.save_image_to_file(result_image)
+    assert (output_dir / "test_rgb.png").exists()
+    
+    
     
