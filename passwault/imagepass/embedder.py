@@ -2,24 +2,27 @@ import base64
 from pathlib import Path
 from random import choice
 import struct
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 import zlib
 
 from passwault.core.utils.session_manager import SessionManager
 from passwault.imagepass import config
 from passwault.imagepass.struct import Header
 from passwault.imagepass.utils.utils import key_generator
-
-from .utils.image_handler import ImageHandler
+from passwault.imagepass.utils.image_handler import ImageHandler
 
 
 
 class Embedder:
     def __init__(
-        self, image_path: str, session_manager: Optional[SessionManager] = None
+        self,
+        image_path: Union[Path, str],
+        output_dir: Optional[Union[Path, str]] = None,
+        session_manager: Optional[SessionManager] = None
     ) -> None:
-        self.image_path = Path(image_path)
-        self.image_handler = ImageHandler(self.image_path)
+        self.image_path = image_path if isinstance(image_path, Path) else Path(image_path)
+        self.output_dir = output_dir if isinstance(output_dir, Path) or output_dir is None else Path(output_dir)
+        self.image_handler = ImageHandler(self.image_path, self.output_dir)
         self.message = None
         self.session = None
         self.user_id = None
@@ -245,8 +248,10 @@ class Embedder:
             
             self._insert_message_lsb(header, payload, band_values[band], key)
 
-            self.image_handler.replace_band(band, band_values[band])
+            result_image = self.image_handler.replace_band(band, band_values[band])
             
+            if result_image:
+                self.image_handler.save_image_to_file(result_image)
         else:
             # WIP
             pass
