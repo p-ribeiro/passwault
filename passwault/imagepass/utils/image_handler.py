@@ -38,7 +38,7 @@ class ImageHandler:
 
         return list(band_values)
 
-    def replace_band(self, band: str, band_values: List[int]):
+    def replace_band(self, band: str, band_values: List[int]) -> Optional[Image.Image]:
         # only works for PNG / lossless images
 
         if band not in self.bands.keys():
@@ -74,9 +74,11 @@ class ImageHandler:
                 case _:
                     return
             
-            result_filename = f"{self.image_name + "." + self.image_suffix}"
-            modified_image.save(self.result_dir / result_filename, format=self.image_suffix)
+            return modified_image
 
         except Exception as e:
             print(e)
 
+    def save_image_to_file(self, image: Image.Image) -> None:
+        filename = f"{self.image_name + "." + self.image_suffix}"
+        image.save(self.result_dir / filename, format=self.image_suffix)
