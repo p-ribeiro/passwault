@@ -1,4 +1,3 @@
-from click import BadArgumentUsage
 from passwault.imagepass.embedder import Embedder
 from passwault.imagepass.utils.utils import key_generator
 
