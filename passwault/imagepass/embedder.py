@@ -220,8 +220,16 @@ class Embedder:
                     header.key.decode(),
                     header.message_len
                 )
-                return message
-
+                
+                if message:
+                    # verify message CRC
+                    msg_crc_stored = message[-4:].encode()
+                    msg_content = message[:-4]
+                    msg_crc_calc = zlib.crc32(msg_content.encode()).to_bytes(4, "big")
+                    
+                    if msg_crc_calc == msg_crc_stored:
+                        return msg_content
+                
         return None
                 
                 
@@ -229,6 +237,9 @@ class Embedder:
     # @check_session
     def encode(self, message: str):
         self.message = message
+        
+        if len(message) > self.image_handler.size * len(self.image_handler.bands):
+            raise ValueError("Message is too large to encode in the image.")
         
         band_values = {}
         if len(self.message) < self.image_handler.size:
@@ -240,8 +251,8 @@ class Embedder:
             # the key is always 10 chars long
             key = key_generator()
     
-            header = self._create_header(key, len(message))
-            msg_crc = zlib.crc32(message.encode()).to_bytes(4, 'big')
+            header = self._create_header(key, len(self.message))
+            msg_crc = zlib.crc32(self.message.encode()).to_bytes(4, 'big')
             payload = message.encode() + msg_crc 
             
             self._insert_message_lsb(header, payload, band_values[band], key)
@@ -252,4 +263,5 @@ class Embedder:
                 self.image_handler.save_image_to_file(result_image)
         else:
             # WIP
+            print("Message too large to fit in a single band.")
             pass
