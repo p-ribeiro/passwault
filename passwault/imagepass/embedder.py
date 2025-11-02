@@ -183,12 +183,13 @@ class Embedder:
                               source_bytes: List[int],
                               key: str,
                               msg_len: int
-                            ) -> Optional[str]:
+                            ) -> tuple[str, bytes]:
 
         keyed_spacer = self._key_spacing_generator(key)
         source_bit_idx = config.HEADER_LEN * config.BYTE_SIZE
         decoded_byte = ""
-        result = ""
+        decoded_message = ""
+        message_crc = bytearray()
         
         # get message
         while source_bit_idx < len(source_bytes):
@@ -197,14 +198,30 @@ class Embedder:
             
             if len(decoded_byte) == config.BYTE_SIZE:
                 decoded_byte_chr = chr(int(decoded_byte, 2))
-                result += decoded_byte_chr
+                decoded_message += decoded_byte_chr
                 decoded_byte = ""
                 
-            if len(result) == msg_len:
-                return result
+            source_bit_idx += next(keyed_spacer)
+            if len(decoded_message) == msg_len:
+                break
+            
+        
+        # get crc
+        while source_bit_idx < len(source_bytes):
+            bit = source_bytes[source_bit_idx] & 1
+            decoded_byte += str(bit)
+           
+            if len(decoded_byte) == config.BYTE_SIZE:
+                byte_value = int(decoded_byte, 2)
+                message_crc.append(byte_value)
+                decoded_byte = ""
             
             source_bit_idx += next(keyed_spacer)
+            if len(message_crc) == 4:
+                break            
             
+            
+        return decoded_message, bytes(message_crc)
 
     # @check_session
     def decode(self) -> Optional[str]:
@@ -215,7 +232,7 @@ class Embedder:
 
             if header_bytes:
                 header = self._unpack_header(header_bytes)
-                message = self._retrieve_message_lsb(
+                message, message_crc = self._retrieve_message_lsb(
                     band_values,
                     header.key.decode(),
                     header.message_len
@@ -223,12 +240,9 @@ class Embedder:
                 
                 if message:
                     # verify message CRC
-                    msg_crc_stored = message[-4:].encode()
-                    msg_content = message[:-4]
-                    msg_crc_calc = zlib.crc32(msg_content.encode()).to_bytes(4, "big")
-                    
-                    if msg_crc_calc == msg_crc_stored:
-                        return msg_content
+                    msg_crc_calc = zlib.crc32(message.encode()).to_bytes(4, "big")
+                    if msg_crc_calc == message_crc:
+                        return message
                 
         return None
                 
@@ -253,8 +267,7 @@ class Embedder:
     
             header = self._create_header(key, len(self.message))
             msg_crc = zlib.crc32(self.message.encode()).to_bytes(4, 'big')
-            payload = message.encode() + msg_crc 
-            
+            payload = self.message.encode() + msg_crc
             self._insert_message_lsb(header, payload, band_values[band], key)
 
             result_image = self.image_handler.replace_band(band, band_values[band])

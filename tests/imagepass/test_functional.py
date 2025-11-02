@@ -28,14 +28,14 @@ def test_encode_decode(tmp_path):
     encoder = Embedder(test_image, output_dir)
     
     encoder.encode(message)
-    output_image = output_dir / "sample_image.png"
-    assert output_image.exists(), "Encoded image was not created."
+    result_image = output_dir / "sample_image.png"
+    assert result_image.exists(), "Encoded image was not created."
     
     # Initialize the decoder
-    decoder = Embedder(output_image)
+    decoder = Embedder(result_image)
     decoded_message = decoder.decode()
     assert decoded_message is not None, "Decoded message is None."
-    assert message.strip() == decoded_message.strip(), "Decoded message does not match the original."
+    assert message == decoded_message, "Decoded message does not match the original."
     
     
 def test_encode_message_larger_than_capacity(tmp_image_rgb):
