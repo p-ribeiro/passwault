@@ -2,8 +2,6 @@
 from pathlib import Path
 import shutil
 
-import test
-
 from passwault.imagepass.embedder import Embedder
 
 
@@ -40,6 +38,19 @@ def test_encode_decode(tmp_path):
     assert message.strip() == decoded_message.strip(), "Decoded message does not match the original."
     
     
+def test_encode_message_larger_than_capacity(tmp_image_rgb):
+    # Create a very large message
+    large_message = "A" * 10**7  # 10 million characters
     
+    
+    # Initialize the encoder
+    encoder = Embedder(tmp_image_rgb)
+    
+    # Expect a ValueError to be raised due to insufficient capacity
+    try:
+        encoder.encode(large_message)
+        assert False, "Expected ValueError was not raised."
+    except ValueError as e:
+        assert "Message is too large to encode in the image." in str(e) 
     
     
