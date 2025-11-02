@@ -1,8 +1,5 @@
-from hmac import new
-from tkinter import Image
-import pytest
 from passwault.imagepass.utils.image_handler import ImageHandler
-
+import pytest
 
 def test_get_image_dimensions(tmp_image_rgb):
     image_handler = ImageHandler(tmp_image_rgb)
