@@ -9,6 +9,7 @@ __pycache__/
 *.tiff
 *.bmp
 *.db
+*.book*
 
 htmlcov/
 .coverage
