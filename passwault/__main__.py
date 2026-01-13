@@ -1,21 +1,29 @@
-# from passwault.core.utils.session_manager import SessionManager
-from passwault.core.database.models import Base, engine
-from passwault.core.database.password_manager import save_password, get_password_by_username
+"""Passwault CLI entry point.
+
+This module initializes the database and launches the CLI interface.
+"""
+
 from passwault.core.cli import cli
+from passwault.core.database.models import Base, engine
+from passwault.core.utils.session_manager import SessionManager
 
 
 def main():
-    # Expire previous session
-    # session_manager = SessionManager()
-    # session_manager.expire_session()
+    """Main entry point for Passwault CLI.
 
-    # create the tables
+    Initializes database tables and starts the CLI with session management.
+    """
+    # Create database tables if they don't exist
     Base.metadata.create_all(engine)
 
-    
+    # Initialize session manager
+    session_manager = SessionManager()
 
-    # initalize the system
-    # cli()
+    # Check and expire stale sessions
+    session_manager.expire_session()
+
+    # Start CLI
+    cli(session_manager=session_manager)
 
 
 if __name__ == "__main__":
