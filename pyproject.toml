@@ -12,6 +12,7 @@ dependencies = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "pytest-mock>=3.14.1",
+    "sqlalchemy>=2.0.44",
     "sqlcipher3>=0.5.4",
 ]
 

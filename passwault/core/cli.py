@@ -1,8 +1,6 @@
 import argparse
-import sys
 
-from passwault.core.utils.app_context import AppContext
-from passwault.core.commands.authenticator import login, logout, register
+# from passwault.core.commands.authenticator import login, logout, register
 from passwault.core.commands.password import generate_pw, load_pw, save_pw
 from passwault.core.utils.file_handler import valid_file, valid_image_file
 from passwault.core.utils.logger import Logger
@@ -26,7 +24,7 @@ def validate_save_pw_args(args, parser):
     if not args.password or not args.password_name:
         parser.error("when not using -f/--file, both -p/--password and -n/--password-name are required")
 
-def cli(ctx: AppContext, args=None):
+def cli(args=None):
     try:
         parser = argparse.ArgumentParser(
             description="""---- PASSWAULT: a password manager"""
@@ -66,14 +64,14 @@ def cli(ctx: AppContext, args=None):
         save_password_parser.add_argument("-f", "--file", type=valid_file, help="the file with the list of passswords")
         save_password_parser.set_defaults(func=lambda args: (
                                 validate_save_pw_args(args, save_password_parser),
-                                save_pw(args.username, args.password, args.password_name, args.file, ctx)
+                                save_pw(args.username, args.password, args.password_name, args.file)
                             ))
 
         # load_password subcommand
         load_password_parser = subparsers.add_parser("load_password", help="Gets the password from database")
         load_password_parser.add_argument("-n", "--password-name", type=str, help="the password identifier")
         load_password_parser.add_argument("-a","--all-passwords", action="store_true", help="return all passwords for user")
-        load_password_parser.set_defaults(func=lambda args: load_pw(args.password_name, args.all_passwords, ctx))
+        load_password_parser.set_defaults(func=lambda args: load_pw(args.password_name, args.all_passwords))
 
         ### ------------------------------------
         # IMAGE PASS MODULE
@@ -86,7 +84,7 @@ def cli(ctx: AppContext, args=None):
                                     )
         imagepass_parser.add_argument("image_path", type=valid_image_file, help="the image file")
         imagepass_parser.add_argument("-p", "--password", help="the password to be encoded")
-        imagepass_parser.set_defaults(func=lambda args: handle_imagepass(args, ctx))
+        imagepass_parser.set_defaults(func=lambda args: handle_imagepass(args))
 
         parsed_args = parser.parse_args(args)
 

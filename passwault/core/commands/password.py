@@ -1,19 +1,15 @@
 import re
 from random import choice
 
-from passwault.core.utils.app_context import AppContext
 from passwault.core.utils.file_handler import read_file
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import check_session
 
+from passwault.core.database.password_manager import save_password, get_all_passwords, get_password_by_resource_name, get_password_by_username, get_password_by_website
 
-@check_session
-def save_pw(
-    pw_username: str, password: str, password_name: str, file: str, ctx: AppContext
-):
 
-    session = ctx.session_manager.get_session()
-    user_id = session["id"]
+# @check_session
+def save_pw(pw_username: str, password: str, password_name: str, file: str):
 
     if file:
         pw_pairs = read_file(file)
@@ -21,8 +17,8 @@ def save_pw(
             Logger.error("TBD error invalid file")
             return
 
-        for username, pw, pw_name in pw_pairs:
-            ctx.user_repo.save_password(user_id, username, pw, pw_name)
+        for username, pw, resource_name in pw_pairs:
+            save_password(resource_name, pw, username)
 
         Logger.info("Successfully imported the password file")
         return
@@ -31,23 +27,19 @@ def save_pw(
         Logger.error("You should insert a password with a password_name")
         return
 
-    response = ctx.user_repo.save_password(
-        user_id, pw_username, password, password_name
-    )
-    if not response.ok:
-        Logger.error(response.result)
+    response = save_password(password_name, pw_username, password)
+    if not response:
+        Logger.error("Error saving password")
         return
 
     Logger.info("Password inserted with success")
 
 
-@check_session
-def load_pw(password_name: str, all_passwords: bool, ctx: AppContext):
+# @check_session
+def load_pw(password_name: str, all_passwords: bool):
 
-    session = ctx.session_manager.get_session()
-    user_id = session["id"]
+    # session = ctx.session_manager.get_session()
 
-    # return all passwords and return
     if all_passwords is True:
         response = ctx.user_repo.get_all_passwords(user_id)
         if not response.ok:

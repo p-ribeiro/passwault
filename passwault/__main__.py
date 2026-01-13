@@ -1,23 +1,21 @@
-from passwault.core.utils.app_context import AppContext
-from passwault.core.utils.session_manager import SessionManager
-from passwault.core.utils.database import SQLiteConnector
+# from passwault.core.utils.session_manager import SessionManager
+from passwault.core.database.models import Base, engine
+from passwault.core.database.password_manager import save_password, get_password_by_username
 from passwault.core.cli import cli
 
 
 def main():
     # Expire previous session
-    session_manager = SessionManager()
-    session_manager.expire_session()
+    # session_manager = SessionManager()
+    # session_manager.expire_session()
 
-    # Initialize database
-    db = SQLiteConnector("passwault.db")
-    db.init_db()
+    # create the tables
+    Base.metadata.create_all(engine)
 
-    try:
-        ctx = AppContext(db, session_manager)
-        cli(ctx)
-    finally:
-        db.close()
+    
+
+    # initalize the system
+    # cli()
 
 
 if __name__ == "__main__":
