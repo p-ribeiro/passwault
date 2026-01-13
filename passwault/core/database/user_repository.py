@@ -1,172 +1,252 @@
-# import bcrypt
-# from passwault.core.utils import enums
-# from passwault.core.utils.local_types import Fail, Response, Success
+"""User repository for authentication and user management.
+
+This module handles all user-related database operations including
+registration, authentication, and user lookups.
+"""
+
+from typing import Optional, Dict, Any
+
+from sqlalchemy.exc import IntegrityError
+
+from passwault.core.database import models
+from passwault.core.database.models import User
+from passwault.core.services.crypto_service import CryptoService
+from passwault.core.utils.local_types import Response, Success, Fail
 
 
-# class UserRepository:
-#     def __init__(self, db_connector: DatabaseConnector):
-#         self.db = db_connector
-#         self.roles = enums.ROLES
+class UserRepository:
+    """Repository for user management and authentication.
 
-#     def check_if_username_exists(self, username: str) -> Response[bool]:
-#         query = "SELECT 1 FROM users WHERE username = {};"
-#         query = query.format(self.db.get_placeholder_symbol())
-#         result = self.db.fetch_one(query, (username,))
-#         return Success(result is not None)
+    Handles user registration, authentication, and related operations.
+    Uses CryptoService for password hashing and key derivation.
+    """
 
-#     def register(self, username: str, password: str, role: str) -> Response[None]:
-#         placeholder = self.db.get_placeholder_symbol()
-#         query = f"""INSERT INTO users (username, password_hash, role)
-#                     VALUES ({placeholder}, {placeholder}, {placeholder});
-#                 """
+    def __init__(self):
+        """Initialize the user repository with crypto service."""
+        self.crypto = CryptoService()
 
-#         if role.lower() not in self.roles:
-#             return Fail("This role is invalid")
+    def register(
+        self, username: str, master_password: str, email: Optional[str] = None
+    ) -> Response[int]:
+        """Register a new user with a master password.
 
-#         password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        Creates a new user account with:
+        - bcrypt-hashed master password for authentication
+        - Random salt for encryption key derivation
+        - Default KDF parameters (PBKDF2, 600k iterations)
 
-#         try:
-#             self.db.execute_query(
-#                 query, (username, password_hash, enums.ROLES[role.lower()])
-#             )
-#         except IntegrityError:
-#             return Fail("User already exists")
-#         except Exception as e:
-#             return Fail(f"Error during insertion: {str(e)}")
+        Args:
+            username: Unique username for the account
+            master_password: Master password (will be hashed)
+            email: Optional email address
 
-#         return Success(None)
+        Returns:
+            Response[int]: Success with user_id, or Fail with error message
 
-#     def authentication(self, username: str, password: str) -> Response[int]:
-#         placeholder = self.db.get_placeholder_symbol()
-#         query = f"""SELECT user_id, password_hash
-#                     FROM users WHERE username=({placeholder});
-#                 """
+        Example:
+            >>> repo = UserRepository()
+            >>> result = repo.register("john", "SecurePass123!", "john@example.com")
+            >>> if result.ok:
+            ...     print(f"User registered with ID: {result.result}")
+        """
+        session = models.SessionLocal()
+        try:
+            # Generate salt for encryption key derivation
+            salt = self.crypto.generate_salt()
 
-#         try:
-#             user = self.db.fetch_one(query, (username,))
+            # Hash master password for authentication
+            password_hash = self.crypto.hash_master_password(master_password)
 
-#             if user is None:
-#                 return Fail("User not found")
+            # Create new user record
+            new_user = User(
+                username=username,
+                email=email,
+                master_password_hash=password_hash,
+                salt=salt,
+                kdf_algorithm="PBKDF2",
+                kdf_iterations=CryptoService.DEFAULT_KDF_ITERATIONS,
+            )
 
-#             user_id: str = int(user[0])
-#             password_hash: str = user[1]
+            session.add(new_user)
+            session.commit()
+            session.refresh(new_user)
 
-#             if bcrypt.checkpw(password.encode("utf-8"), password_hash):
-#                 return Success(user_id)
-#             else:
-#                 return Fail("Authentication failed")
-#         except Exception as e:
-#             return Fail(f"Error found while authenticating user: {e}")
+            return Success(new_user.id)
 
-#     def authorization(self, username: str, required_role: str) -> Response[None]:
-#         placeholder = self.db.get_placeholder_symbol()
-#         query = f"""SELECT role
-#                     FROM users
-#                     WHERE username=({placeholder});
-#                 """
+        except IntegrityError as e:
+            session.rollback()
+            error_msg = str(e.orig) if hasattr(e, "orig") else str(e)
+            if "UNIQUE constraint" in error_msg or "unique" in error_msg.lower():
+                if "username" in error_msg.lower():
+                    return Fail("Username already exists")
+                elif "email" in error_msg.lower():
+                    return Fail("Email already exists")
+                else:
+                    return Fail("Username or email already exists")
+            return Fail(f"Database integrity error: {error_msg}")
 
-#         try:
-#             user = self.db.fetch_one(query, (username,))
+        except Exception as e:
+            session.rollback()
+            return Fail(f"Error during registration: {str(e)}")
 
-#             if user is None:
-#                 return Fail("User not found")
+        finally:
+            session.close()
 
-#             user_role = user[0]
+    def authenticate(
+        self, username: str, master_password: str
+    ) -> Response[Dict[str, Any]]:
+        """Authenticate a user and derive their encryption key.
 
-#             if enums.ROLES[required_role.lower()] == user_role:
-#                 return Success(None)
-#             else:
-#                 return Fail("Not authorized")
-#         except Exception as e:
-#             return Fail(f"Error authorizing user: {e}")
+        Verifies the master password and derives the encryption key
+        that will be used to encrypt/decrypt stored passwords.
 
-#     def get_username(self, user_id: int) -> Response[str]:
-#         placeholder = self.db.get_placeholder_symbol()
-#         query = f"""
-#                 SELECT username
-#                 FROM users
-#                 WHERE user_id=({placeholder});
-#                 """
+        Args:
+            username: Username to authenticate
+            master_password: Master password to verify
 
-#         try:
-#             username: str = self.db.fetch_one(query, (user_id,))
+        Returns:
+            Response[Dict]: Success with dict containing:
+                - user_id: The user's ID
+                - username: The username
+                - encryption_key: Derived encryption key (32 bytes)
+                - salt: The user's salt
+                - kdf_iterations: KDF iteration count
+            Or Fail with error message
 
-#             if username:
-#                 return Success(username[0])
-#             else:
-#                 return Fail("User not found")
+        Example:
+            >>> repo = UserRepository()
+            >>> result = repo.authenticate("john", "SecurePass123!")
+            >>> if result.ok:
+            ...     user_data = result.result
+            ...     encryption_key = user_data["encryption_key"]
+        """
+        session = models.SessionLocal()
+        try:
+            # Query user by username
+            user = session.query(User).filter_by(username=username).first()
 
-#         except Exception as e:
-#             return Fail(f"Error getting user_id: {e}")
+            if not user:
+                return Fail("User not found")
 
-#     def get_role(self, user_id: int) -> Response[int]:
-#         placeholder = self.db.get_placeholder_symbol()
-#         query = f"""
-#                 SELECT role
-#                 FROM users
-#                 WHERE user_id=({placeholder});
-#                 """
+            # Verify master password
+            if not self.crypto.verify_master_password(
+                master_password, user.master_password_hash
+            ):
+                return Fail("Invalid password")
 
-#         try:
-#             user_role: int = self.db.fetch_one(query, (user_id,))
+            # Derive encryption key from master password
+            encryption_key = self.crypto.derive_encryption_key(
+                master_password, user.salt, user.kdf_iterations
+            )
 
-#             if user_role:
-#                 return Success(user_role[0])
-#             else:
-#                 return Fail("User not found")
+            # Update last login timestamp
+            from sqlalchemy.sql import func
 
-#         except Exception as e:
-#             return Fail(f"Error getting user_role: {e}")
+            user.last_login = func.now()
+            session.commit()
 
-#     def save_password(
-#         self, user_id: int, pw_username: str, password: str, password_name: str
-#     ) -> Response[None]:
-#         placeholder = self.db.get_placeholder_symbol()
-#         query = f"""INSERT INTO passwords (password_name, password, username, user_id)
-#                     VALUES ({placeholder}, {placeholder}, {placeholder},{placeholder});
-#                 """
+            # Return user data with encryption key
+            return Success(
+                {
+                    "user_id": user.id,
+                    "username": user.username,
+                    "encryption_key": encryption_key,
+                    "salt": user.salt,
+                    "kdf_iterations": user.kdf_iterations,
+                }
+            )
 
-#         try:
-#             self.db.execute_query(
-#                 query,
-#                 (password_name, password, pw_username, user_id)
-#             )
-#         except Exception as e:
-#             return Fail(f"Error while saving password: {e}")
+        except Exception as e:
+            session.rollback()
+            return Fail(f"Error during authentication: {str(e)}")
 
-#         return Success(None)
+        finally:
+            session.close()
 
-#     def get_password(self, user_id: int, password_name: str) -> Response[str]:
-#         placeholder = self.db.get_placeholder_symbol()
-#         query = f"""SELECT username, password_name, password
-#                     FROM passwords
-#                     WHERE password_name={placeholder}
-#                     AND user_id={placeholder};
-#                 """
+    def get_user_by_id(self, user_id: int) -> Response[Dict[str, Any]]:
+        """Get user information by user ID.
 
-#         try:
-#             password: list[str] = self.db.fetch_one(query, (password_name, user_id))
+        Args:
+            user_id: The user's ID
 
-#             if password:
-#                 return Success(password)
-#             else:
-#                 return Fail("Password not found")
-#         except Exception as e:
-#             return Fail(f"Error while retrieving password: {e}")
+        Returns:
+            Response[Dict]: Success with user data (without sensitive info)
+                or Fail with error message
+        """
+        session = models.SessionLocal()
+        try:
+            user = session.query(User).filter_by(id=user_id).first()
 
-#     def get_all_passwords(self, user_id: int) -> Response[list[str]]:
-#         placeholder = self.db.get_placeholder_symbol()
-#         query = f"""
-#                 SELECT username, password_name, password
-#                 FROM passwords
-#                 WHERE user_id=({placeholder});
-#                 """
+            if not user:
+                return Fail("User not found")
 
-#         try:
-#             passwords: list[str] = self.db.fetch_all(query, (user_id,))
-#             if len(passwords) > 0:
-#                 return Success(passwords)
-#             else:
-#                 return Fail(f"There is not password for user: {user_id}")
-#         except Exception as e:
-#             return Fail(f"Error while retrieving all passwords: {e}")
+            return Success(
+                {
+                    "user_id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "created_at": user.created_at,
+                    "last_login": user.last_login,
+                }
+            )
+
+        except Exception as e:
+            return Fail(f"Error retrieving user: {str(e)}")
+
+        finally:
+            session.close()
+
+    def get_user_by_username(self, username: str) -> Response[Dict[str, Any]]:
+        """Get user information by username.
+
+        Args:
+            username: The username to look up
+
+        Returns:
+            Response[Dict]: Success with user data (without sensitive info)
+                or Fail with error message
+        """
+        session = models.SessionLocal()
+        try:
+            user = session.query(User).filter_by(username=username).first()
+
+            if not user:
+                return Fail("User not found")
+
+            return Success(
+                {
+                    "user_id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "created_at": user.created_at,
+                    "last_login": user.last_login,
+                }
+            )
+
+        except Exception as e:
+            return Fail(f"Error retrieving user: {str(e)}")
+
+        finally:
+            session.close()
+
+    def check_username_exists(self, username: str) -> Response[bool]:
+        """Check if a username already exists.
+
+        Args:
+            username: Username to check
+
+        Returns:
+            Response[bool]: Success with True if exists, False otherwise
+        """
+        session = models.SessionLocal()
+        try:
+            exists = (
+                session.query(User).filter_by(username=username).first() is not None
+            )
+            return Success(exists)
+
+        except Exception as e:
+            return Fail(f"Error checking username: {str(e)}")
+
+        finally:
+            session.close()
