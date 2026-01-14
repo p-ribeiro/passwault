@@ -11,7 +11,12 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from passwault.core.commands.authenticator import register, login, logout
+from passwault.core.commands.authenticator import (
+    change_master_password,
+    login,
+    logout,
+    register,
+)
 from passwault.core.database.models import Base, User
 from passwault.core.utils.session_manager import SessionManager
 from sqlalchemy import create_engine
@@ -397,3 +402,217 @@ class TestAuthenticationFlow:
         key1 = sm1.get_encryption_key()
         key2 = sm2.get_encryption_key()
         assert key1 != key2
+
+
+class TestChangeMasterPassword:
+    """Test suite for change_master_password command."""
+
+    def test_change_password_success(self, test_db, session_manager):
+        """Test successfully changing master password."""
+        # Register and login
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        # Save a password to verify re-encryption works
+        from passwault.core.commands.password import save_password
+
+        save_password(
+            resource_name="github",
+            password="mypassword",
+            session_manager=session_manager,
+        )
+
+        # Change master password
+        change_master_password("OldPass123!", "NewPass456!", session_manager)
+
+        # Verify we can logout and login with new password
+        logout(session_manager)
+        login("testuser", "NewPass456!", session_manager)
+
+        assert session_manager.is_logged_in()
+
+        # Verify password was re-encrypted and can be decrypted with new key
+        from passwault.core.commands.password import load_password
+        from io import StringIO
+        import sys
+
+        # Capture output
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        load_password(resource_name="github", session_manager=session_manager)
+        sys.stdout = sys.__stdout__
+
+        output = captured_output.getvalue()
+        assert "github" in output
+        assert "mypassword" in output
+
+    def test_change_password_wrong_old_password(self, test_db, session_manager):
+        """Test change password fails with wrong old password."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        # Try to change with wrong old password
+        change_master_password("WrongOldPass!", "NewPass456!", session_manager)
+
+        # Verify password was NOT changed (can still login with old password)
+        logout(session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        assert session_manager.is_logged_in()
+
+        # Verify new password doesn't work
+        logout(session_manager)
+        login("testuser", "NewPass456!", session_manager)
+
+        assert not session_manager.is_logged_in()
+
+    def test_change_password_same_as_old(self, test_db, session_manager):
+        """Test change password fails when new password equals old password."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        # Try to change to same password
+        change_master_password("OldPass123!", "OldPass123!", session_manager)
+
+        # Should still be logged in (operation should fail gracefully)
+        assert session_manager.is_logged_in()
+
+    def test_change_password_with_prompts(self, test_db, session_manager):
+        """Test change password with password prompts."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        with patch(
+            "passwault.core.commands.authenticator.get_password_with_mask"
+        ) as mock_get_pass:
+            # First call for old password, second for new, third for confirmation
+            mock_get_pass.side_effect = ["OldPass123!", "NewPass456!", "NewPass456!"]
+
+            change_master_password(None, None, session_manager)
+
+            assert mock_get_pass.call_count == 3
+
+        # Verify password was changed
+        logout(session_manager)
+        login("testuser", "NewPass456!", session_manager)
+
+        assert session_manager.is_logged_in()
+
+    def test_change_password_prompt_mismatch(self, test_db, session_manager):
+        """Test change password fails when new password confirmation doesn't match."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        with patch(
+            "passwault.core.commands.authenticator.get_password_with_mask"
+        ) as mock_get_pass:
+            # Old password correct, but new password and confirmation don't match
+            mock_get_pass.side_effect = ["OldPass123!", "NewPass456!", "DifferentPass789!"]
+
+            change_master_password(None, None, session_manager)
+
+        # Verify password was NOT changed
+        logout(session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        assert session_manager.is_logged_in()
+
+    def test_change_password_reencrypts_multiple_passwords(self, test_db, session_manager):
+        """Test change password re-encrypts multiple passwords correctly."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        # Save multiple passwords
+        from passwault.core.commands.password import save_password
+
+        save_password("github", "github_pass", session_manager=session_manager)
+        save_password("gitlab", "gitlab_pass", session_manager=session_manager)
+        save_password("bitbucket", "bitbucket_pass", session_manager=session_manager)
+
+        # Change master password
+        change_master_password("OldPass123!", "NewPass456!", session_manager)
+
+        # Verify all passwords can still be decrypted
+        from passwault.core.database.password_manager import PasswordRepository
+
+        repo = PasswordRepository()
+        user_id = session_manager.get_user_id()
+        encryption_key = session_manager.get_encryption_key()
+
+        result = repo.get_all_passwords(user_id, encryption_key)
+        assert result.ok
+        assert len(result.result) == 3
+
+        # Verify specific passwords
+        github = repo.get_password_by_resource_name(user_id, encryption_key, "github")
+        assert github.ok
+        assert github.result["password"] == "github_pass"
+
+        gitlab = repo.get_password_by_resource_name(user_id, encryption_key, "gitlab")
+        assert gitlab.ok
+        assert gitlab.result["password"] == "gitlab_pass"
+
+        bitbucket = repo.get_password_by_resource_name(user_id, encryption_key, "bitbucket")
+        assert bitbucket.ok
+        assert bitbucket.result["password"] == "bitbucket_pass"
+
+    def test_change_password_updates_session(self, test_db, session_manager):
+        """Test change password updates session with new encryption key."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        old_encryption_key = session_manager.get_encryption_key()
+
+        # Change master password
+        change_master_password("OldPass123!", "NewPass456!", session_manager)
+
+        new_encryption_key = session_manager.get_encryption_key()
+
+        # Verify encryption key changed
+        assert old_encryption_key != new_encryption_key
+        # Verify still logged in
+        assert session_manager.is_logged_in()
+
+    def test_change_password_empty_new_password(self, test_db, session_manager):
+        """Test change password fails with empty new password."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        with patch(
+            "passwault.core.commands.authenticator.get_password_with_mask"
+        ) as mock_get_pass:
+            # Old password correct, but new password is empty
+            mock_get_pass.side_effect = ["OldPass123!", ""]
+
+            change_master_password(None, None, session_manager)
+
+        # Verify password was NOT changed
+        logout(session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        assert session_manager.is_logged_in()
+
+    def test_change_password_requires_auth(self, test_db, session_manager):
+        """Test change password requires authentication."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        # Don't login
+
+        # Try to change password without being logged in
+        result = change_master_password("OldPass123!", "NewPass456!", session_manager)
+
+        # Should return None (blocked by @require_auth decorator)
+        assert result is None
+
+    def test_change_password_no_existing_passwords(self, test_db, session_manager):
+        """Test change password works even with no existing passwords."""
+        register("testuser", "OldPass123!", "test@example.com", session_manager)
+        login("testuser", "OldPass123!", session_manager)
+
+        # Change password without saving any passwords
+        change_master_password("OldPass123!", "NewPass456!", session_manager)
+
+        # Verify password was changed
+        logout(session_manager)
+        login("testuser", "NewPass456!", session_manager)
+
+        assert session_manager.is_logged_in()

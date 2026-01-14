@@ -7,7 +7,12 @@ image steganography.
 
 import argparse
 
-from passwault.core.commands.authenticator import login, logout, register
+from passwault.core.commands.authenticator import (
+    change_master_password,
+    login,
+    logout,
+    register,
+)
 from passwault.core.commands.password import (
     delete_password,
     generate_password,
@@ -113,6 +118,29 @@ def cli(args=None, session_manager=None):
             "logout", help="Logout from current session"
         )
         logout_parser.set_defaults(func=lambda args: logout(session_manager))
+
+        # Change master password subcommand
+        change_password_parser = auth_subparsers.add_parser(
+            "change-password",
+            help="Change your master password (requires authentication)",
+        )
+        change_password_parser.add_argument(
+            "-o",
+            "--old-password",
+            type=str,
+            help="Current master password (will prompt if not provided)",
+        )
+        change_password_parser.add_argument(
+            "-n",
+            "--new-password",
+            type=str,
+            help="New master password (will prompt if not provided)",
+        )
+        change_password_parser.set_defaults(
+            func=lambda args: change_master_password(
+                args.old_password, args.new_password, session_manager
+            )
+        )
 
         # ====================================
         # PASSWORD GENERATION
