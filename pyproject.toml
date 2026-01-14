@@ -16,6 +16,17 @@ dependencies = [
     "sqlcipher3>=0.5.4",
 ]
 
+[project.scripts]
+passwault = "passwault.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["passwault*"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [dependency-groups]
 dev = [
     "black>=25.1.0",

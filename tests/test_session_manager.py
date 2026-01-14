@@ -145,9 +145,13 @@ class TestSessionCreation:
         with pytest.raises(json.JSONDecodeError):
             json.loads(raw_data)
 
-    def test_create_session_does_not_persist_encryption_key(self, session_manager):
-        """Test that encryption key is NOT saved to disk."""
-        encryption_key = b"secret_key_should_not_be_saved!"
+    def test_create_session_persists_encrypted_key(self, session_manager):
+        """Test that encryption key IS saved to disk (encrypted).
+
+        The encryption key is now persisted in the encrypted session file
+        to support multi-invocation CLI usage while maintaining security.
+        """
+        encryption_key = b"secret_key_should_be_encrypted!"
         user_data = {
             "user_id": 1,
             "username": "testuser",
@@ -156,7 +160,7 @@ class TestSessionCreation:
 
         session_manager.create_session(user_data)
 
-        # Load session file and verify encryption key is not there
+        # Load session file and verify encryption key IS there (encrypted)
         secret_key = session_manager._get_secret_key()
         fernet = Fernet(secret_key)
 
@@ -166,9 +170,15 @@ class TestSessionCreation:
         decrypted_data = fernet.decrypt(encrypted_data)
         session_data = json.loads(decrypted_data.decode())
 
-        assert "encryption_key" not in session_data
+        # Encryption key SHOULD be in encrypted session file
+        assert "encryption_key" in session_data
         assert "user_id" in session_data
         assert "username" in session_data
+
+        # Verify encryption key is stored as base64 and can be decoded
+        import base64
+        decoded_key = base64.b64decode(session_data["encryption_key"])
+        assert decoded_key == encryption_key
 
     def test_create_session_adds_timestamp(self, session_manager):
         """Test that session includes timestamp."""
@@ -513,8 +523,12 @@ class TestSessionSecurity:
         # Should not contain plain text username
         assert b"testuser" not in raw_content
 
-    def test_session_file_does_not_contain_encryption_key(self, session_manager):
-        """Test that session file never contains encryption key."""
+    def test_session_file_contains_encrypted_key(self, session_manager):
+        """Test that session file contains encryption key (encrypted).
+
+        The encryption key is now persisted in the encrypted session file
+        to support multi-invocation CLI usage.
+        """
         encryption_key = b"very_secret_encryption_key_32b"
         user_data = {
             "user_id": 1,
@@ -534,8 +548,15 @@ class TestSessionSecurity:
         decrypted_data = fernet.decrypt(encrypted_data)
         session_content = decrypted_data.decode()
 
-        # Encryption key should not be in file at all
-        assert "encryption_key" not in session_content
+        # Encryption key SHOULD be in file (as base64)
+        assert "encryption_key" in session_content
+
+        # Verify it can be restored correctly
+        import json
+        import base64
+        session_data = json.loads(session_content)
+        restored_key = base64.b64decode(session_data["encryption_key"])
+        assert restored_key == encryption_key
 
     def test_different_users_have_different_sessions(self, temp_session_dir):
         """Test that different users have isolated sessions."""

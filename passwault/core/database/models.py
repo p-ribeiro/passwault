@@ -92,5 +92,5 @@ class PasswordManager(Base):
         )
     
 # Database Setup
-engine = create_engine("sqlite:///passwault.db", echo=True)
+engine = create_engine("sqlite:///passwault.db", echo=False)
 SessionLocal = sessionmaker(bind=engine)

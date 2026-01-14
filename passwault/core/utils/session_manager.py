@@ -47,16 +47,21 @@ class SessionManager:
 
     Security features:
     - Session data encrypted on disk with Fernet (symmetric encryption)
-    - Encryption keys stored in memory only (never persisted to disk)
+    - Encryption key encrypted within session file for multi-invocation support
     - Automatic session expiration after 10 minutes of inactivity
     - Secure cleanup on logout (clears both session and encryption key)
 
-    Session file contains only non-sensitive data:
+    Session file contains (all encrypted):
     - user_id: User's database ID
     - username: Username
     - timestamp: Session creation/update time
+    - encryption_key: User's derived encryption key (for password decryption)
 
-    Encryption key is cached in _encryption_key_cache (in-memory only).
+    The encryption key is persisted in the encrypted session file to support
+    separate CLI invocations while maintaining security through:
+    - Fernet encryption of the entire session file
+    - Restricted file permissions (should be 600)
+    - Automatic cleanup on logout/expiration
     """
 
     # Session timeout in minutes
@@ -71,10 +76,13 @@ class SessionManager:
         self.root_path = Path(__file__).resolve().parents[4]
         self.session_file_path = self.root_path / session_file
         self.key_file_path = self.root_path / ".enckey"
-        self.session = self._load_session()
 
-        # In-memory encryption key cache (NEVER persisted to disk)
+        # In-memory encryption key cache
+        # Will be populated from session file if session exists
         self._encryption_key_cache: Optional[bytes] = None
+
+        # Load session and restore encryption key if present
+        self.session = self._load_session()
 
     def _create_secret_key(self):
         """Create Fernet encryption key for session file encryption."""
@@ -91,8 +99,10 @@ class SessionManager:
     def _load_session(self) -> Optional[Dict[str, Any]]:
         """Load and decrypt session from disk.
 
+        Also restores the encryption key to memory if present in session file.
+
         Returns:
-            Session data dict if exists, None otherwise
+            Session data dict (without encryption_key field) if exists, None otherwise
         """
         if path.exists(self.session_file_path):
             if not path.isfile(self.key_file_path):
@@ -106,16 +116,32 @@ class SessionManager:
                 encrypted_session = sf.read()
 
             decrypted_data = fernet.decrypt(encrypted_session)
+            session_data = json.loads(decrypted_data.decode())
 
-            return json.loads(decrypted_data.decode())
+            # Restore encryption key to memory if present
+            if "encryption_key" in session_data:
+                import base64
+                self._encryption_key_cache = base64.b64decode(
+                    session_data["encryption_key"]
+                )
+                # Remove from session dict (keep in cache only)
+                del session_data["encryption_key"]
+
+            return session_data
 
         return None
 
     def _save_session(self):
         """Encrypt and save session to disk.
 
-        Only saves non-sensitive session data (user_id, username, timestamp).
-        Encryption key is NEVER saved to disk.
+        Saves session data including the encryption key, all encrypted with Fernet.
+        The encryption key is included to allow subsequent CLI invocations to
+        access encrypted passwords during an active session.
+
+        Security note:
+        - Session file is encrypted with Fernet (symmetric encryption)
+        - Session file should have restricted permissions (600)
+        - Encryption key is cleared on logout or session expiration
         """
         if self.session is None:
             return
@@ -128,8 +154,17 @@ class SessionManager:
         # Update timestamp
         self.session["timestamp"] = datetime.now().isoformat()
 
-        # Encrypt session (only non-sensitive data)
-        encrypted_session = fernet.encrypt(json.dumps(self.session).encode())
+        # Prepare session data including encryption key (if cached)
+        session_data = self.session.copy()
+        if self._encryption_key_cache is not None:
+            # Store encryption key as base64 for JSON serialization
+            import base64
+            session_data["encryption_key"] = base64.b64encode(
+                self._encryption_key_cache
+            ).decode("utf-8")
+
+        # Encrypt session (including encryption key)
+        encrypted_session = fernet.encrypt(json.dumps(session_data).encode())
 
         with open(self.session_file_path, "wb") as sf:
             sf.write(encrypted_session)
@@ -152,24 +187,25 @@ class SessionManager:
         """Create a new user session with encryption key caching.
 
         Extracts and caches the encryption key from user_data, then saves
-        only non-sensitive session data to disk.
+        all session data (including encryption key) to encrypted session file.
 
         Args:
             user_data: Dictionary containing:
                 - user_id: User's database ID
                 - username: Username
-                - encryption_key: Derived encryption key (cached in memory)
+                - encryption_key: Derived encryption key (cached and persisted)
                 - Other optional fields (not persisted)
 
         Security:
-            - encryption_key is cached in memory only
-            - Session file contains only user_id, username, timestamp
+            - encryption_key is cached in memory for performance
+            - Session file is encrypted with Fernet before writing to disk
+            - Session file should have restricted permissions (600)
         """
-        # Extract and cache encryption key (NEVER persisted)
+        # Extract and cache encryption key
         if "encryption_key" in user_data:
             self._encryption_key_cache = user_data["encryption_key"]
 
-        # Create session with only non-sensitive data
+        # Create session data
         self.session = {
             "user_id": user_data["user_id"],
             "username": user_data["username"],
@@ -187,7 +223,7 @@ class SessionManager:
         Security:
             - Key is only available during active session
             - Key is cleared on logout or expiration
-            - Key is NEVER persisted to disk
+            - Key is encrypted in session file for multi-invocation support
         """
         if not self.is_logged_in():
             return None
