@@ -9,6 +9,9 @@ __pycache__/
 *.tiff
 *.bmp
 *.db
+*.txt
+*.book*
+PKG-INFO
 
 htmlcov/
 .coverage
