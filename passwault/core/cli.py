@@ -31,11 +31,11 @@ def handle_imagepass(args, session_manager):
     Returns:
         Result of encode/decode operation
     """
-    embedder = Embedder(args.image_path, session_manager)
+    embedder = Embedder(args.image_path, session_manager=session_manager)
     if args.option == "encode":
-        return embedder.encode(message=args.password)
+        return embedder.encode(message=args.password, session_manager=session_manager)
     else:
-        return embedder.decode()
+        return embedder.decode(session_manager=session_manager)
 
 
 def cli(args=None, session_manager=None):

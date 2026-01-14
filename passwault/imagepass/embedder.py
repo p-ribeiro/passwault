@@ -5,6 +5,7 @@ import struct
 from typing import Any, List, Optional, Union
 import zlib
 
+from passwault.core.utils.decorators import require_auth
 from passwault.core.utils.session_manager import SessionManager
 from passwault.imagepass import config
 from passwault.imagepass.struct import Header
@@ -24,12 +25,13 @@ class Embedder:
         self.output_dir = output_dir if isinstance(output_dir, Path) or output_dir is None else Path(output_dir)
         self.image_handler = ImageHandler(self.image_path, self.output_dir)
         self.message = None
+        self.session_manager = session_manager
         self.session = None
         self.user_id = None
 
         if session_manager:
             self.session = session_manager.get_session()
-            self.user_id = self.session["id"] if self.session else None
+            self.user_id = self.session["user_id"] if self.session else None
 
     def _create_bands_bitmask(self) -> int:
         """Bitmask for R/G/B/A/L channels\n
@@ -223,8 +225,8 @@ class Embedder:
             
         return decoded_message, bytes(message_crc)
 
-    # @check_session
-    def decode(self) -> Optional[str]:
+    @require_auth
+    def decode(self, session_manager: SessionManager) -> Optional[str]:
         for band in self.image_handler.bands.keys():
             band_values = self.image_handler.get_band_values(band)
 
@@ -237,24 +239,24 @@ class Embedder:
                     header.key.decode(),
                     header.message_len
                 )
-                
+
                 if message:
                     # verify message CRC
                     msg_crc_calc = zlib.crc32(message.encode()).to_bytes(4, "big")
                     if msg_crc_calc == message_crc:
                         return message
-                
+
         return None
                 
                 
 
-    # @check_session
-    def encode(self, message: str):
+    @require_auth
+    def encode(self, message: str, session_manager: SessionManager):
         self.message = message
-        
+
         if len(message) > self.image_handler.size * len(self.image_handler.bands):
             raise ValueError("Message is too large to encode in the image.")
-        
+
         band_values = {}
         if len(self.message) < self.image_handler.size:
             # only one band is necessary (default for passwords)
@@ -264,14 +266,14 @@ class Embedder:
 
             # the key is always 10 chars long
             key = key_generator()
-    
+
             header = self._create_header(key, len(self.message))
             msg_crc = zlib.crc32(self.message.encode()).to_bytes(4, 'big')
             payload = self.message.encode() + msg_crc
             self._insert_message_lsb(header, payload, band_values[band], key)
 
             result_image = self.image_handler.replace_band(band, band_values[band])
-            
+
             if result_image:
                 self.image_handler.save_image_to_file(result_image)
         else:
