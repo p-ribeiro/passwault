@@ -1,12 +1,11 @@
 from random import choice
-from typing import List
 
 
 def key_generator(
     len: int = 10,
     has_symbols: bool = True,
     has_digits: bool = True,
-    has_uppercase: bool = True
+    has_uppercase: bool = True,
 ) -> str:
 
     SYMBOLS_RANGE = [33, 38]
@@ -28,4 +27,3 @@ def key_generator(
     password = "".join([chr(choice(pool)) for _ in range(len)])
 
     return password
-

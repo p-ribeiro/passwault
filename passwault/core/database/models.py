@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from sqlalchemy import (
     Column,
     Integer,
@@ -90,7 +88,8 @@ class PasswordManager(Base):
             f"<PasswordManager(id={self.id}, user_id={self.user_id}, "
             f"resource_name='{self.resource_name}')>"
         )
-    
+
+
 # Database Setup
 engine = create_engine("sqlite:///passwault.db", echo=False)
 SessionLocal = sessionmaker(bind=engine)

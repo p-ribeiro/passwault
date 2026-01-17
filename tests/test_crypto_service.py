@@ -81,9 +81,7 @@ class TestCryptoService:
 
     def test_verify_master_password_invalid_hash(self):
         """Test password verification with invalid hash."""
-        result = self.crypto.verify_master_password(
-            self.test_password, b"invalid_hash"
-        )
+        result = self.crypto.verify_master_password(self.test_password, b"invalid_hash")
 
         assert result is False
 
@@ -282,7 +280,6 @@ class TestCryptoServiceIntegration:
 
     def test_full_user_registration_flow(self):
         """Test complete user registration flow with crypto operations."""
-        username = "testuser"
         master_password = "MasterPass123!"
 
         # Registration: generate salt and hash password
@@ -310,9 +307,7 @@ class TestCryptoServiceIntegration:
 
         # Later: load password (decrypt)
         # User logs in again
-        encryption_key_again = self.crypto.derive_encryption_key(
-            master_password, salt
-        )
+        encryption_key_again = self.crypto.derive_encryption_key(master_password, salt)
         decrypted = self.crypto.decrypt_password(
             ciphertext, nonce, encryption_key_again
         )

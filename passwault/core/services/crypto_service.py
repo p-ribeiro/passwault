@@ -64,7 +64,7 @@ class CryptoService:
         Returns:
             bcrypt hash as bytes (includes salt and parameters)
         """
-        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
     @staticmethod
     def verify_master_password(password: str, password_hash: bytes) -> bool:
@@ -80,15 +80,13 @@ class CryptoService:
             True if password matches, False otherwise
         """
         try:
-            return bcrypt.checkpw(password.encode('utf-8'), password_hash)
+            return bcrypt.checkpw(password.encode("utf-8"), password_hash)
         except (ValueError, TypeError):
             return False
 
     @staticmethod
     def derive_encryption_key(
-        master_password: str,
-        salt: bytes,
-        iterations: int = DEFAULT_KDF_ITERATIONS
+        master_password: str, salt: bytes, iterations: int = DEFAULT_KDF_ITERATIONS
     ) -> bytes:
         """Derive an encryption key from a master password using PBKDF2.
 
@@ -108,9 +106,9 @@ class CryptoService:
             length=32,  # 256 bits for AES-256
             salt=salt,
             iterations=iterations,
-            backend=default_backend()
+            backend=default_backend(),
         )
-        return kdf.derive(master_password.encode('utf-8'))
+        return kdf.derive(master_password.encode("utf-8"))
 
     @staticmethod
     def encrypt_password(plaintext: str, encryption_key: bytes) -> Tuple[bytes, bytes]:
@@ -136,16 +134,12 @@ class CryptoService:
 
         aesgcm = AESGCM(encryption_key)
         nonce = os.urandom(CryptoService.DEFAULT_NONCE_LENGTH)
-        ciphertext = aesgcm.encrypt(nonce, plaintext.encode('utf-8'), None)
+        ciphertext = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
 
         return ciphertext, nonce
 
     @staticmethod
-    def decrypt_password(
-        ciphertext: bytes,
-        nonce: bytes,
-        encryption_key: bytes
-    ) -> str:
+    def decrypt_password(ciphertext: bytes, nonce: bytes, encryption_key: bytes) -> str:
         """Decrypt a password using AES-256-GCM.
 
         Verifies the authentication tag to ensure data integrity.
@@ -169,4 +163,4 @@ class CryptoService:
         aesgcm = AESGCM(encryption_key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
 
-        return plaintext.decode('utf-8')
+        return plaintext.decode("utf-8")

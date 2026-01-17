@@ -138,16 +138,20 @@ class TestMigrationDetection:
             # Verify no passwords exist
             session = models.SessionLocal()
             try:
-                result_count = session.execute(text("SELECT COUNT(*) FROM password_manager"))
+                result_count = session.execute(
+                    text("SELECT COUNT(*) FROM password_manager")
+                )
                 count = result_count.scalar()
-                assert count == 0, f"Expected 0 passwords in fresh install, found {count}"
+                assert (
+                    count == 0
+                ), f"Expected 0 passwords in fresh install, found {count}"
             finally:
                 session.close()
 
             result = check_migration_needed()
 
             assert result.ok is True
-            assert result.result is False, f"Fresh install should not need migration"
+            assert result.result is False, "Fresh install should not need migration"
 
             # Restore original values
             models.engine = original_engine
@@ -188,7 +192,7 @@ class TestMigrationDetection:
                     "INSERT INTO password_manager (user_id, resource_name, encrypted_password, nonce) "
                     "VALUES (0, 'test', :enc_pwd, :nonce)"
                 ),
-                {"enc_pwd": b"test", "nonce": b"test_nonce"}
+                {"enc_pwd": b"test", "nonce": b"test_nonce"},
             )
             session.commit()
 
@@ -217,7 +221,9 @@ class TestMigrationDetection:
             # Create user
             salt = crypto.generate_salt()
             password_hash = crypto.hash_master_password("TestPassword123!")
-            encryption_key = crypto.derive_encryption_key("TestPassword123!", salt, 600000)
+            encryption_key = crypto.derive_encryption_key(
+                "TestPassword123!", salt, 600000
+            )
 
             user = User(
                 username="testuser",
@@ -308,9 +314,7 @@ class TestMigrationExecution:
         """Test that migration preserves username, website, description."""
         engine, password_count = old_schema_db
 
-        result = migrate_from_v1_to_v2(
-            username="testuser", password="SecurePass123!"
-        )
+        result = migrate_from_v1_to_v2(username="testuser", password="SecurePass123!")
 
         assert result.ok is True
 
@@ -353,9 +357,7 @@ class TestMigrationExecution:
         # Create empty old schema
         Base.metadata.create_all(engine)
 
-        result = migrate_from_v1_to_v2(
-            username="emptyuser", password="SecurePass123!"
-        )
+        result = migrate_from_v1_to_v2(username="emptyuser", password="SecurePass123!")
 
         # Should succeed but migrate 0 passwords
         assert result.ok is True
@@ -392,7 +394,10 @@ class TestMigrationExecution:
         )
 
         assert result.ok is False
-        assert "already taken" in result.result.lower() or "exists" in result.result.lower()
+        assert (
+            "already taken" in result.result.lower()
+            or "exists" in result.result.lower()
+        )
 
 
 class TestMigrationIntegration:
@@ -460,9 +465,7 @@ class TestMigrationIntegration:
         engine, password_count = old_schema_db
 
         # Perform migration
-        result = migrate_from_v1_to_v2(
-            username="repotest", password="SecurePass123!"
-        )
+        result = migrate_from_v1_to_v2(username="repotest", password="SecurePass123!")
         assert result.ok is True
 
         # Now try to use PasswordRepository

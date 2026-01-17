@@ -318,17 +318,19 @@ def change_master_password(
         }
         session_manager.create_session(user_data)
 
-        Logger.info(f"\n✓ Master password changed successfully!")
+        Logger.info("\n✓ Master password changed successfully!")
         Logger.info(f"  - Re-encrypted {len(passwords)} password(s)")
-        Logger.info(f"  - Session updated with new encryption key")
+        Logger.info("  - Session updated with new encryption key")
         Logger.info(
-            f"  - Please remember your new master password - it cannot be recovered!"
+            "  - Please remember your new master password - it cannot be recovered!"
         )
 
     except Exception as e:
         session.rollback()
         Logger.error(f"Error changing master password: {str(e)}")
-        Logger.error("Operation cancelled. Your passwords remain encrypted with the old key.")
+        Logger.error(
+            "Operation cancelled. Your passwords remain encrypted with the old key."
+        )
         return
 
     finally:

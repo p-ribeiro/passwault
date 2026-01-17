@@ -7,7 +7,7 @@ password prompting, validation, and session management.
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -371,6 +371,7 @@ class TestAuthenticationFlow:
 
     def test_multiple_users(self, test_db, temp_session_dir):
         """Test multiple users with separate sessions."""
+
         # Create two session managers for two users
         def create_session_manager():
             def _init_with_temp(self, sf=".session"):
@@ -507,7 +508,11 @@ class TestChangeMasterPassword:
             "passwault.core.commands.authenticator.get_password_with_mask"
         ) as mock_get_pass:
             # Old password correct, but new password and confirmation don't match
-            mock_get_pass.side_effect = ["OldPass123!", "NewPass456!", "DifferentPass789!"]
+            mock_get_pass.side_effect = [
+                "OldPass123!",
+                "NewPass456!",
+                "DifferentPass789!",
+            ]
 
             change_master_password(None, None, session_manager)
 
@@ -517,7 +522,9 @@ class TestChangeMasterPassword:
 
         assert session_manager.is_logged_in()
 
-    def test_change_password_reencrypts_multiple_passwords(self, test_db, session_manager):
+    def test_change_password_reencrypts_multiple_passwords(
+        self, test_db, session_manager
+    ):
         """Test change password re-encrypts multiple passwords correctly."""
         register("testuser", "OldPass123!", "test@example.com", session_manager)
         login("testuser", "OldPass123!", session_manager)
@@ -552,7 +559,9 @@ class TestChangeMasterPassword:
         assert gitlab.ok
         assert gitlab.result["password"] == "gitlab_pass"
 
-        bitbucket = repo.get_password_by_resource_name(user_id, encryption_key, "bitbucket")
+        bitbucket = repo.get_password_by_resource_name(
+            user_id, encryption_key, "bitbucket"
+        )
         assert bitbucket.ok
         assert bitbucket.result["password"] == "bitbucket_pass"
 
