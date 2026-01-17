@@ -370,7 +370,6 @@ dependencies = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "sqlalchemy" },
-    { name = "sqlcipher3" },
 ]
 
 [package.dev-dependencies]
@@ -393,7 +392,6 @@ requires-dist = [
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "pytest-mock", specifier = ">=3.14.1" },
     { name = "sqlalchemy", specifier = ">=2.0.44" },
-    { name = "sqlcipher3", specifier = ">=0.5.4" },
 ]
 
 [package.metadata.requires-dev]
@@ -604,12 +602,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/f0/f2/840d7b9496825333f
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9c/5e/6a29fa884d9fb7ddadf6b69490a9d45fded3b38541713010dad16b77d015/sqlalchemy-2.0.44-py3-none-any.whl", hash = "sha256:19de7ca1246fbef9f9d1bff8f1ab25641569df226364a0e40457dc5457c54b05", size = 1928718, upload-time = "2025-10-10T15:29:45.32Z" },
 ]
-
-[[package]]
-name = "sqlcipher3"
-version = "0.5.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8e/6a/2d0a0f761c0b5cd182e4ef3b5459b27cd0ce7a6dcc6f34b6b1c79f73e752/sqlcipher3-0.5.4.tar.gz", hash = "sha256:e30ff58d64dd43e19eceddd10116a1a27ad1d9888cc4245c75f2bda9b0384e77", size = 40316, upload-time = "2024-10-12T12:12:31.685Z" }
 
 [[package]]
 name = "typing-extensions"
