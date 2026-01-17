@@ -215,7 +215,9 @@ class PasswordRepository:
                     continue
 
             if not results:
-                return Fail(f"Could not decrypt any passwords for username '{username}'")
+                return Fail(
+                    f"Could not decrypt any passwords for username '{username}'"
+                )
 
             return Success(results)
 
@@ -344,9 +346,7 @@ class PasswordRepository:
         finally:
             session.close()
 
-    def delete_password(
-        self, user_id: int, resource_name: str
-    ) -> Response[bool]:
+    def delete_password(self, user_id: int, resource_name: str) -> Response[bool]:
         """Delete a password entry.
 
         Args:

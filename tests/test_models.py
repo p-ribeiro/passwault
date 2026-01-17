@@ -8,7 +8,6 @@ Tests User and PasswordManager models including:
 
 import os
 import tempfile
-from datetime import datetime
 
 import pytest
 from sqlalchemy import create_engine, inspect
@@ -523,7 +522,6 @@ class TestUserPasswordRelationship:
             session.add(entry)
             session.commit()
 
-            user_id = user.id
             entry_id = entry.id
 
             # Delete user
@@ -591,5 +589,5 @@ class TestDatabaseIndexes:
         assert "idx_resource_name" in index_names
 
         # Check User indexes (username should be indexed due to unique constraint)
-        user_indexes = inspector.get_indexes("users")
+        _ = inspector.get_indexes("users")
         # SQLite creates indexes automatically for UNIQUE constraints

@@ -14,17 +14,22 @@ def tmp_image_rgb(tmp_path):
     Image.new("RGB", (300, 200), color=(102, 200, 235)).save(test_image_path)
     return test_image_path
 
+
 @pytest.fixture
 def tmp_image_rgba(tmp_path):
     test_image_path = tmp_path / "test_rgba.png"
     Image.new("RGBA", (300, 200), color=(102, 200, 235)).save(test_image_path)
     return test_image_path
 
+
 @pytest.fixture
 def tmp_image_rgb_jpeg(tmp_path):
     test_image_path = tmp_path / "test_rgb.jpg"
-    Image.new("RGB", (300, 200), color=(102, 200, 235)).save(test_image_path, format="JPEG")
+    Image.new("RGB", (300, 200), color=(102, 200, 235)).save(
+        test_image_path, format="JPEG"
+    )
     return test_image_path
+
 
 @pytest.fixture
 def tmp_image_bw(tmp_path):
@@ -32,15 +37,18 @@ def tmp_image_bw(tmp_path):
     Image.new("L", (300, 200)).save(test_image_path)
     return test_image_path
 
+
 @pytest.fixture
 def new_band_values():
     return [111] * (200 * 300)
+
 
 @pytest.fixture
 def temp_session_dir():
     """Create temporary directory for session files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
+
 
 @pytest.fixture
 def session_manager(temp_session_dir):
@@ -71,4 +79,4 @@ def session_manager(temp_session_dir):
         if session_file.exists():
             session_file.unlink()
         if key_file.exists():
-            key_file.unlink() 
+            key_file.unlink()

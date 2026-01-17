@@ -5,10 +5,9 @@ for all Passwault CLI commands.
 """
 
 import io
-import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -67,9 +66,7 @@ class TestAuthenticationCommands:
         test_args = ["auth", "register", "-u", "johndoe"]
         cli(test_args, session_manager)
 
-        mock_register.assert_called_once_with(
-            "johndoe", None, None, session_manager
-        )
+        mock_register.assert_called_once_with("johndoe", None, None, session_manager)
 
     def test_register_without_username(self, session_manager):
         """Test register command fails without username."""
@@ -170,7 +167,9 @@ class TestPasswordGenerationCommands:
         )
 
     @patch("passwault.core.cli.generate_password")
-    def test_generate_custom_length_and_exclusions(self, mock_generate, session_manager):
+    def test_generate_custom_length_and_exclusions(
+        self, mock_generate, session_manager
+    ):
         """Test generate command with custom length and exclusions."""
         test_args = ["generate", "-l", "20", "--no-symbols", "--no-digits"]
         cli(test_args, session_manager)
@@ -415,7 +414,7 @@ class TestCLIIntegration:
 
     def test_no_command_shows_help(self, session_manager):
         """Test that running with no command shows help."""
-        with patch("sys.stdout", io.StringIO()) as mock_stdout:
+        with patch("sys.stdout", io.StringIO()):
             cli([], session_manager)
 
             # Help text should be printed

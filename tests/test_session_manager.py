@@ -8,12 +8,11 @@ Tests session management including:
 - Security measures
 """
 
-import os
 import tempfile
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
@@ -36,7 +35,9 @@ def session_manager(temp_session_dir):
 
     # Patch the root_path to use temp directory
     with patch.object(
-        SessionManager, "__init__", lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf)
+        SessionManager,
+        "__init__",
+        lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf),
     ):
         manager = SessionManager()
         yield manager
@@ -63,7 +64,9 @@ class TestSessionManagerInitialization:
     def test_init_no_existing_session(self, temp_session_dir):
         """Test initialization with no existing session."""
         with patch.object(
-            SessionManager, "__init__", lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf)
+            SessionManager,
+            "__init__",
+            lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf),
         ):
             manager = SessionManager()
 
@@ -74,7 +77,9 @@ class TestSessionManagerInitialization:
     def test_init_creates_paths(self, temp_session_dir):
         """Test that initialization sets correct file paths."""
         with patch.object(
-            SessionManager, "__init__", lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf)
+            SessionManager,
+            "__init__",
+            lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf),
         ):
             manager = SessionManager()
 
@@ -177,6 +182,7 @@ class TestSessionCreation:
 
         # Verify encryption key is stored as base64 and can be decoded
         import base64
+
         decoded_key = base64.b64decode(session_data["encryption_key"])
         assert decoded_key == encryption_key
 
@@ -202,7 +208,9 @@ class TestSessionPersistence:
         """Test loading an existing session from disk."""
         # Create first manager and session
         with patch.object(
-            SessionManager, "__init__", lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf)
+            SessionManager,
+            "__init__",
+            lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf),
         ):
             manager1 = SessionManager()
             user_data = {
@@ -224,7 +232,9 @@ class TestSessionPersistence:
         """Test that encryption key is NOT restored from disk."""
         # Create first manager and session
         with patch.object(
-            SessionManager, "__init__", lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf)
+            SessionManager,
+            "__init__",
+            lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf),
         ):
             manager1 = SessionManager()
             encryption_key = b"secret_key_32_bytes_for_test"
@@ -554,6 +564,7 @@ class TestSessionSecurity:
         # Verify it can be restored correctly
         import json
         import base64
+
         session_data = json.loads(session_content)
         restored_key = base64.b64decode(session_data["encryption_key"])
         assert restored_key == encryption_key
@@ -561,7 +572,9 @@ class TestSessionSecurity:
     def test_different_users_have_different_sessions(self, temp_session_dir):
         """Test that different users have isolated sessions."""
         with patch.object(
-            SessionManager, "__init__", lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf)
+            SessionManager,
+            "__init__",
+            lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf),
         ):
             manager = SessionManager()
 
@@ -625,7 +638,9 @@ class TestSessionManagerIntegration:
     def test_session_persistence_across_instances(self, temp_session_dir):
         """Test that session persists across SessionManager instances."""
         with patch.object(
-            SessionManager, "__init__", lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf)
+            SessionManager,
+            "__init__",
+            lambda self, sf=".session": _init_with_temp(self, temp_session_dir, sf),
         ):
             # Create session with first instance
             manager1 = SessionManager()

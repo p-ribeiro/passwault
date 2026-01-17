@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import shutil
 
@@ -41,7 +40,6 @@ def test_encode_decode(tmp_path, session_manager):
 def test_encode_message_larger_than_capacity(tmp_image_rgb, session_manager):
     # Create a very large message
     large_message = "A" * 10**7  # 10 million characters
-
 
     # Initialize the encoder
     encoder = Embedder(tmp_image_rgb, session_manager=session_manager)

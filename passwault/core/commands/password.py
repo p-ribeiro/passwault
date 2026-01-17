@@ -119,7 +119,9 @@ def load_password(
 
     # Load by resource name
     if resource_name:
-        result = repo.get_password_by_resource_name(user_id, encryption_key, resource_name)
+        result = repo.get_password_by_resource_name(
+            user_id, encryption_key, resource_name
+        )
 
         if not result.ok:
             Logger.error(result.result)
@@ -136,7 +138,9 @@ def load_password(
             Logger.error(result.result)
             return
 
-        Logger.info(f"\nFound {len(result.result)} password(s) for username '{username}':\n")
+        Logger.info(
+            f"\nFound {len(result.result)} password(s) for username '{username}':\n"
+        )
         for pwd in result.result:
             _display_password_entry(pwd)
 
@@ -306,14 +310,14 @@ def _display_password_entry(entry: dict) -> None:
     """
     print("\n" + "=" * 60)
     print(f"Resource: {entry['resource_name']}")
-    if entry.get('username'):
+    if entry.get("username"):
         print(f"Username: {entry['username']}")
     print(f"Password: {entry['password']}")
-    if entry.get('website'):
+    if entry.get("website"):
         print(f"Website: {entry['website']}")
-    if entry.get('description'):
+    if entry.get("description"):
         print(f"Description: {entry['description']}")
-    if entry.get('tags'):
+    if entry.get("tags"):
         print(f"Tags: {entry['tags']}")
     print(f"Created: {entry['created_at']}")
     print(f"Updated: {entry['updated_at']}")

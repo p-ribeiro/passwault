@@ -97,9 +97,7 @@ def cli(args=None, session_manager=None):
         )
 
         # Login subcommand
-        login_parser = auth_subparsers.add_parser(
-            "login", help="Login to your account"
-        )
+        login_parser = auth_subparsers.add_parser("login", help="Login to your account")
         login_parser.add_argument(
             "-u", "--username", type=str, required=True, help="Your username"
         )

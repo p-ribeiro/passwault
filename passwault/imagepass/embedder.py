@@ -1,8 +1,7 @@
-import base64
 from pathlib import Path
 from random import choice
 import struct
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 import zlib
 
 from passwault.core.utils.decorators import require_auth
@@ -13,16 +12,21 @@ from passwault.imagepass.utils.utils import key_generator
 from passwault.imagepass.utils.image_handler import ImageHandler
 
 
-
 class Embedder:
     def __init__(
         self,
         image_path: Union[Path, str],
         output_dir: Optional[Union[Path, str]] = None,
-        session_manager: Optional[SessionManager] = None
+        session_manager: Optional[SessionManager] = None,
     ) -> None:
-        self.image_path = image_path if isinstance(image_path, Path) else Path(image_path)
-        self.output_dir = output_dir if isinstance(output_dir, Path) or output_dir is None else Path(output_dir)
+        self.image_path = (
+            image_path if isinstance(image_path, Path) else Path(image_path)
+        )
+        self.output_dir = (
+            output_dir
+            if isinstance(output_dir, Path) or output_dir is None
+            else Path(output_dir)
+        )
         self.image_handler = ImageHandler(self.image_path, self.output_dir)
         self.message = None
         self.session_manager = session_manager
@@ -42,78 +46,76 @@ class Embedder:
         b = "B" in self.image_handler.bands
         a = "A" in self.image_handler.bands
         l = "L" in self.image_handler.bands
-        
-        bands_bitmask = (r<<0) | (g<<1) | (b<<2) | (a << 3) | (l << 4)
+
+        bands_bitmask = (r << 0) | (g << 1) | (b << 2) | (a << 3) | (l << 4)
         return bands_bitmask
-        
 
     def _unpack_header(self, header: bytes) -> Header:
-        marker, band_mask, msg_len, algo, key = struct.unpack(">IBIB10s", header[:config.HEADER_LEN - 4])
-        
+        marker, band_mask, msg_len, algo, key = struct.unpack(
+            ">IBIB10s", header[: config.HEADER_LEN - 4]
+        )
+
         header_crc_stored = header[config.HEADER_LEN - 4 : config.HEADER_LEN]
-        
+
         # validate CRC
-        header_without_crc = header[:config.HEADER_LEN - 4]
+        header_without_crc = header[: config.HEADER_LEN - 4]
         header_crc_calc = zlib.crc32(header_without_crc).to_bytes(4, "big")
         if header_crc_calc != header_crc_stored:
             raise ValueError("Header CRC mismatch!")
-        
-        
-        
+
         return Header(
             marker=marker,
             band_mask=band_mask,
             message_len=msg_len,
-            algo_id = algo,
-            key=key
+            algo_id=algo,
+            key=key,
         )
 
     def _create_header(self, key: str, msg_len: int) -> bytes:
-        
+
         header: Header = Header(
             marker=config.MARKER,
             band_mask=self._create_bands_bitmask(),
             message_len=msg_len,
             algo_id=1,
-            key=key.encode()
+            key=key.encode(),
         )
 
         # packing the header dataclass into 20 bytes
-        header_fixed = struct.pack(">IBIB10s", 
-                            header.marker,
-                            header.band_mask,
-                            header.message_len,
-                            header.algo_id,
-                            header.key
-                        )
-    
-        
+        header_fixed = struct.pack(
+            ">IBIB10s",
+            header.marker,
+            header.band_mask,
+            header.message_len,
+            header.algo_id,
+            header.key,
+        )
+
         # compute the CRC32
         header_crc = zlib.crc32(header_fixed).to_bytes(4, "big")
-        
+
         # 24 bytes
         final_header = header_fixed + header_crc
-      
+
         return final_header
-        
 
     def _get_header_bytes(self, band_values: List[int]) -> Optional[bytes]:
         def _chunks_of_eight(lst: List[int]):
             for i in range(0, len(lst), 8):
                 yield lst[i : i + 8]
 
-        header_bytes_buffer = b''
-        
+        header_bytes_buffer = b""
+
         for byte_chunk in _chunks_of_eight(band_values):
             # get a string of 0 and 1 from the LSB of the bytes list
             bits = "".join([str(value & 1) for value in byte_chunk])
-            
+
             # convert the string to a single byte
             byte_value = int(bits, 2).to_bytes(1, "big")
-            
+
             header_bytes_buffer += byte_value
-            
-            ## check marker after the first 4 bytes
+
+            # check marker after the first 4 bytes
             # if marker is not found, the value is not here or is corrupted
             if len(header_bytes_buffer) == 4:
                 header_marker_int = int.from_bytes(header_bytes_buffer[:4], "big")
@@ -122,7 +124,7 @@ class Embedder:
 
             if len(header_bytes_buffer) == config.HEADER_LEN:
                 return header_bytes_buffer
-            
+
     @staticmethod
     def _key_spacing_generator(key: str):
         cnt = 0
@@ -132,11 +134,7 @@ class Embedder:
             cnt += 1
 
     def _insert_message_lsb(
-        self,
-        header: bytes,
-        payload: bytes, 
-        target_bytes: List[int], 
-        key: str
+        self, header: bytes, payload: bytes, target_bytes: List[int], key: str
     ) -> None:
         """In-place embedding of each bit of `source_bytes` into the least significant bit (LSB) of `target_bytes`.
 
@@ -147,19 +145,19 @@ class Embedder:
 
         target_lenght = len(target_bytes)
         bit_idx = 0
-        
+
         # add header first
         for byte in header:
             for bit_pos in range(7, -1, -1):
                 bit = byte >> bit_pos & 1
-                
+
                 if bit_idx < target_lenght:
 
                     if bit:
                         target_bytes[bit_idx] |= 1  # set LSB to 1
                     else:
                         target_bytes[bit_idx] &= ~1  # clear LSB to 0
-            
+
                 bit_idx += 1
 
         ##########################################################
@@ -176,53 +174,47 @@ class Embedder:
                         target_bytes[bit_idx] |= 1  # set LSB to 1
                     else:
                         target_bytes[bit_idx] &= ~1  # clear LSB to 0
-                
+
                 bit_idx += next(keyed_spacer)
 
-                
-
-    def _retrieve_message_lsb(self,
-                              source_bytes: List[int],
-                              key: str,
-                              msg_len: int
-                            ) -> tuple[str, bytes]:
+    def _retrieve_message_lsb(
+        self, source_bytes: List[int], key: str, msg_len: int
+    ) -> tuple[str, bytes]:
 
         keyed_spacer = self._key_spacing_generator(key)
         source_bit_idx = config.HEADER_LEN * config.BYTE_SIZE
         decoded_byte = ""
         decoded_message = ""
         message_crc = bytearray()
-        
+
         # get message
         while source_bit_idx < len(source_bytes):
             bit = source_bytes[source_bit_idx] & 1
             decoded_byte += str(bit)
-            
+
             if len(decoded_byte) == config.BYTE_SIZE:
                 decoded_byte_chr = chr(int(decoded_byte, 2))
                 decoded_message += decoded_byte_chr
                 decoded_byte = ""
-                
+
             source_bit_idx += next(keyed_spacer)
             if len(decoded_message) == msg_len:
                 break
-            
-        
+
         # get crc
         while source_bit_idx < len(source_bytes):
             bit = source_bytes[source_bit_idx] & 1
             decoded_byte += str(bit)
-           
+
             if len(decoded_byte) == config.BYTE_SIZE:
                 byte_value = int(decoded_byte, 2)
                 message_crc.append(byte_value)
                 decoded_byte = ""
-            
+
             source_bit_idx += next(keyed_spacer)
             if len(message_crc) == 4:
-                break            
-            
-            
+                break
+
         return decoded_message, bytes(message_crc)
 
     @require_auth
@@ -235,9 +227,7 @@ class Embedder:
             if header_bytes:
                 header = self._unpack_header(header_bytes)
                 message, message_crc = self._retrieve_message_lsb(
-                    band_values,
-                    header.key.decode(),
-                    header.message_len
+                    band_values, header.key.decode(), header.message_len
                 )
 
                 if message:
@@ -247,8 +237,6 @@ class Embedder:
                         return message
 
         return None
-                
-                
 
     @require_auth
     def encode(self, message: str, session_manager: SessionManager):
@@ -268,7 +256,7 @@ class Embedder:
             key = key_generator()
 
             header = self._create_header(key, len(self.message))
-            msg_crc = zlib.crc32(self.message.encode()).to_bytes(4, 'big')
+            msg_crc = zlib.crc32(self.message.encode()).to_bytes(4, "big")
             payload = self.message.encode() + msg_crc
             self._insert_message_lsb(header, payload, band_values[band], key)
 

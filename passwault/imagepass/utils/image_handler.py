@@ -7,7 +7,9 @@ from PIL import Image
 class ImageHandler:
     def __init__(self, image_path: Path, output_dir: Optional[Path] = None) -> None:
         self.image_path: Path = image_path
-        self.result_dir: Path = output_dir or Path(__file__).resolve().parents[3] / "data" / "results"
+        self.result_dir: Path = (
+            output_dir or Path(__file__).resolve().parents[3] / "data" / "results"
+        )
         self.image_name: str = image_path.stem
         self.image_suffix: str = image_path.suffix.split(".")[1]
         self.width, self.height = self._get_image_dimensions()
@@ -43,11 +45,13 @@ class ImageHandler:
 
         if band not in self.bands.keys():
             raise ValueError(f"Band '{band}' is not valid")
-      
+
         with Image.open(self.image_path) as im:
             if im.format in ["JPEG"]:
-                raise TypeError(f"The band cannot be replace for the file type: {im.format}")
-            
+                raise TypeError(
+                    f"The band cannot be replace for the file type: {im.format}"
+                )
+
             bands = im.split()
 
         modified_band_image = Image.new("L", (self.width, self.height))
@@ -73,7 +77,7 @@ class ImageHandler:
                     )
                 case _:
                     return
-            
+
             return modified_image
 
         except Exception as e:

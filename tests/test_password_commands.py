@@ -57,6 +57,7 @@ def temp_session_dir():
 @pytest.fixture
 def session_manager(temp_session_dir):
     """Create SessionManager with temporary directory."""
+
     def _init_with_temp(self, sf=".session"):
         self.root_path = temp_session_dir
         self.session_file_path = self.root_path / sf
@@ -92,9 +93,7 @@ class TestSavePasswordCommand:
 
     def test_save_password_requires_auth(self, test_db, session_manager):
         """Test that save_password requires authentication."""
-        result = save_password(
-            "github", "password123", session_manager=session_manager
-        )
+        result = save_password("github", "password123", session_manager=session_manager)
 
         # Should return None when not authenticated
         assert result is None
@@ -143,9 +142,7 @@ class TestLoadPasswordCommand:
 
     def test_load_password_requires_auth(self, test_db, session_manager):
         """Test that load_password requires authentication."""
-        result = load_password(
-            resource_name="github", session_manager=session_manager
-        )
+        result = load_password(resource_name="github", session_manager=session_manager)
 
         assert result is None
 
@@ -247,7 +244,9 @@ class TestUpdatePasswordCommand:
 
     def test_update_nonexistent_password(self, test_db, authenticated_user):
         """Test updating non-existent password."""
-        update_password("nonexistent", "newpassword", session_manager=authenticated_user)
+        update_password(
+            "nonexistent", "newpassword", session_manager=authenticated_user
+        )
 
 
 class TestDeletePasswordCommand:
@@ -377,7 +376,9 @@ class TestPasswordCommandsIntegration:
         authenticated_user.logout()
 
         # Try to save another password (should be blocked)
-        result = save_password("gitlab", "password456", session_manager=authenticated_user)
+        result = save_password(
+            "gitlab", "password456", session_manager=authenticated_user
+        )
         assert result is None
 
         # Try to load password (should be blocked)

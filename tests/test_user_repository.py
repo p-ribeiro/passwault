@@ -293,7 +293,9 @@ class TestUserRetrieval:
 
     def test_get_user_by_id(self, test_db, user_repo):
         """Test retrieving user by ID."""
-        reg_result = user_repo.register("testuser", "Password123", email="test@example.com")
+        reg_result = user_repo.register(
+            "testuser", "Password123", email="test@example.com"
+        )
         user_id = reg_result.result
 
         get_result = user_repo.get_user_by_id(user_id)
