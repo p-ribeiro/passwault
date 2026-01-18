@@ -1,4 +1,3 @@
-from pathlib import Path
 import datetime as dt
 
 from sqlalchemy import (
@@ -21,13 +20,7 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import func
 
-
-def get_data_dir() -> Path:
-    """Get the application data directory, creating it if needed."""
-    data_dir = Path.home() / ".local" / "share" / "passwault"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir
-
+from passwault.core.utils.data_dir import get_data_dir
 
 Base = declarative_base()
 

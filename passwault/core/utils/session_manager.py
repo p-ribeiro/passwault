@@ -12,8 +12,8 @@ from cryptography.fernet import Fernet
 from datetime import datetime, timedelta
 from functools import wraps
 from os import path, remove
-from pathlib import Path
 from typing import Optional, Dict, Any
+from passwault.core.utils.data_dir import get_data_dir
 from passwault.core.utils.logger import Logger
 
 
@@ -74,9 +74,9 @@ class SessionManager:
         Args:
             session_file: Name of session file (default: .session)
         """
-        self.root_path = Path(__file__).resolve().parents[4]
-        self.session_file_path = self.root_path / session_file
-        self.key_file_path = self.root_path / ".enckey"
+        self.data_dir = get_data_dir()
+        self.session_file_path = self.data_dir / session_file
+        self.key_file_path = self.data_dir / ".enckey"
 
         # In-memory encryption key cache
         # Will be populated from session file if session exists
