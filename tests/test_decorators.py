@@ -3,7 +3,6 @@
 Tests the @require_auth decorator for protecting password operations.
 """
 
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -250,7 +249,6 @@ class TestRequireAuthIntegration:
         @require_auth
         def save_password(password_name, password, session_manager):
             user_id = session_manager.get_user_id()
-            encryption_key = session_manager.get_encryption_key()
             return {
                 "user_id": user_id,
                 "password_name": password_name,

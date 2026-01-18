@@ -17,7 +17,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError
 
 from passwault.core.database import models
-from passwault.core.database.models import Base, PasswordManager, User
+from passwault.core.database.models import User
 from passwault.core.database.user_repository import UserRepository
 from passwault.core.services.crypto_service import CryptoService
 from passwault.core.utils.local_types import Response, Success, Fail
@@ -59,7 +59,9 @@ def check_migration_needed() -> Response[bool]:
 
         # If encrypted_password or nonce columns don't exist, need migration
         if "encrypted_password" not in columns or "nonce" not in columns:
-            Logger.info("Old schema detected (missing encrypted_password or nonce columns)")
+            Logger.info(
+                "Old schema detected (missing encrypted_password or nonce columns)"
+            )
             return Success(True)
 
         # Check if there are passwords in old format (user_id is NULL or 0)
@@ -75,12 +77,14 @@ def check_migration_needed() -> Response[bool]:
 
             # If user_id column doesn't exist, need migration
             if "user_id" not in columns:
-                Logger.info(f"Old schema detected (no user_id column)")
+                Logger.info("Old schema detected (no user_id column)")
                 return Success(True)
 
             # Try to query for passwords without proper user_id
             result = session.execute(
-                text("SELECT COUNT(*) FROM password_manager WHERE user_id IS NULL OR user_id = 0")
+                text(
+                    "SELECT COUNT(*) FROM password_manager WHERE user_id IS NULL OR user_id = 0"
+                )
             )
             orphaned_count = result.scalar()
 
@@ -157,9 +161,7 @@ def migrate_from_v1_to_v2(
         # Count existing passwords BEFORE any schema changes
         password_count = 0
         if "password_manager" in tables:
-            result = session.execute(
-                text("SELECT COUNT(*) FROM password_manager")
-            )
+            result = session.execute(text("SELECT COUNT(*) FROM password_manager"))
             password_count = result.scalar()
 
         # Create users table if it doesn't exist (but DON'T recreate password_manager)
@@ -168,7 +170,9 @@ def migrate_from_v1_to_v2(
             User.__table__.create(models.engine, checkfirst=True)
 
         # Determine if we need to add columns
-        needs_column_migration = "encrypted_password" not in columns or "nonce" not in columns
+        needs_column_migration = (
+            "encrypted_password" not in columns or "nonce" not in columns
+        )
 
         if needs_column_migration:
             Logger.info("Updating database schema...")
@@ -184,7 +188,9 @@ def migrate_from_v1_to_v2(
 
         # Get or create migration user
         if username is None:
-            Logger.info("Please create an account to become the owner of these passwords.")
+            Logger.info(
+                "Please create an account to become the owner of these passwords."
+            )
             username = input("Username: ").strip()
 
             if not username:
@@ -225,7 +231,9 @@ def migrate_from_v1_to_v2(
         # Query passwords directly with SQL since schema might have old column names
         if "user_id" in columns:
             # Schema has user_id, get orphaned passwords
-            sql_query = "SELECT * FROM password_manager WHERE user_id IS NULL OR user_id = 0"
+            sql_query = (
+                "SELECT * FROM password_manager WHERE user_id IS NULL OR user_id = 0"
+            )
         else:
             # Old schema, get all passwords
             sql_query = "SELECT * FROM password_manager"
@@ -243,15 +251,17 @@ def migrate_from_v1_to_v2(
                 plaintext_password = None
 
                 # Check for old 'password' column
-                if 'password' in row_dict and row_dict['password']:
-                    plaintext_password = row_dict['password']
+                if "password" in row_dict and row_dict["password"]:
+                    plaintext_password = row_dict["password"]
                 # Check for 'encrypted_password' that might be plaintext
-                elif 'encrypted_password' in row_dict and row_dict['encrypted_password']:
-                    ep = row_dict['encrypted_password']
+                elif (
+                    "encrypted_password" in row_dict and row_dict["encrypted_password"]
+                ):
+                    ep = row_dict["encrypted_password"]
                     # If it's bytes, try to decode
                     if isinstance(ep, bytes):
                         try:
-                            plaintext_password = ep.decode('utf-8')
+                            plaintext_password = ep.decode("utf-8")
                         except UnicodeDecodeError:
                             # Already encrypted, skip
                             continue
@@ -259,7 +269,9 @@ def migrate_from_v1_to_v2(
                         plaintext_password = ep
 
                 if not plaintext_password:
-                    Logger.info(f"Skipping password ID {row_dict['id']} - no password data")
+                    Logger.info(
+                        f"Skipping password ID {row_dict['id']} - no password data"
+                    )
                     continue
 
                 # Encrypt the password
@@ -282,8 +294,8 @@ def migrate_from_v1_to_v2(
                         "user_id": user_id,
                         "encrypted_password": ciphertext,
                         "nonce": nonce,
-                        "id": row_dict['id']
-                    }
+                        "id": row_dict["id"],
+                    },
                 )
 
                 migrated_count += 1
@@ -292,7 +304,9 @@ def migrate_from_v1_to_v2(
                     Logger.info(f"  Migrated {migrated_count}/{len(old_passwords)}...")
 
             except Exception as e:
-                Logger.info(f"Failed to migrate password ID {row_dict.get('id', '?')}: {str(e)}")
+                Logger.info(
+                    f"Failed to migrate password ID {row_dict.get('id', '?')}: {str(e)}"
+                )
                 continue
 
         # Commit all changes
@@ -303,20 +317,22 @@ def migrate_from_v1_to_v2(
             _drop_password_column(session)
             session.commit()
 
-        Logger.info(f"\n✓ Migration complete!")
+        Logger.info("\n✓ Migration complete!")
         Logger.info(f"  - Migrated passwords: {migrated_count}")
         Logger.info(f"  - Account: {username}")
         Logger.info(f"  - User ID: {user_id}")
-        Logger.info(f"\nYou are now logged in. Your passwords are encrypted and secure.")
+        Logger.info("\nYou are now logged in. Your passwords are encrypted and secure.")
         Logger.info("=" * 60 + "\n")
 
-        return Success({
-            "migrated_count": migrated_count,
-            "user_id": user_id,
-            "username": username,
-            "encryption_key": encryption_key,
-            "user_created": True,
-        })
+        return Success(
+            {
+                "migrated_count": migrated_count,
+                "user_id": user_id,
+                "username": username,
+                "encryption_key": encryption_key,
+                "user_created": True,
+            }
+        )
 
     except Exception as e:
         session.rollback()
@@ -355,9 +371,7 @@ def _add_v2_columns(session):
 
     try:
         # Add nonce column if it doesn't exist
-        session.execute(
-            text("ALTER TABLE password_manager ADD COLUMN nonce BLOB")
-        )
+        session.execute(text("ALTER TABLE password_manager ADD COLUMN nonce BLOB"))
     except OperationalError:
         pass
 
@@ -376,7 +390,9 @@ def _add_v2_columns(session):
         )
         # Set default for existing rows
         session.execute(
-            text("UPDATE password_manager SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
+            text(
+                "UPDATE password_manager SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"
+            )
         )
     except OperationalError:
         pass
@@ -388,7 +404,9 @@ def _add_v2_columns(session):
         )
         # Set default for existing rows
         session.execute(
-            text("UPDATE password_manager SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL")
+            text(
+                "UPDATE password_manager SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"
+            )
         )
     except OperationalError:
         pass
@@ -407,16 +425,16 @@ def _drop_password_column(session):
     """
     try:
         # Try to drop the column (SQLite 3.35.0+)
-        session.execute(
-            text("ALTER TABLE password_manager DROP COLUMN password")
-        )
+        session.execute(text("ALTER TABLE password_manager DROP COLUMN password"))
         Logger.info("Dropped old 'password' column")
     except OperationalError:
         # For older SQLite, recreate the table
         Logger.info("Recreating table to remove old 'password' column...")
 
         # Step 1: Create temporary table with new schema
-        session.execute(text("""
+        session.execute(
+            text(
+                """
             CREATE TABLE password_manager_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -431,22 +449,30 @@ def _drop_password_column(session):
                 updated_at DATETIME,
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
             )
-        """))
+        """
+            )
+        )
 
         # Step 2: Copy data from old table to new table
-        session.execute(text("""
+        session.execute(
+            text(
+                """
             INSERT INTO password_manager_new
             (id, user_id, resource_name, username, encrypted_password, nonce,
              website, description, tags, created_at, updated_at)
             SELECT id, user_id, resource_name, username, encrypted_password, nonce,
                    website, description, tags, created_at, updated_at
             FROM password_manager
-        """))
+        """
+            )
+        )
 
         # Step 3: Drop old table
         session.execute(text("DROP TABLE password_manager"))
 
         # Step 4: Rename new table
-        session.execute(text("ALTER TABLE password_manager_new RENAME TO password_manager"))
+        session.execute(
+            text("ALTER TABLE password_manager_new RENAME TO password_manager")
+        )
 
         Logger.info("Table recreated successfully")

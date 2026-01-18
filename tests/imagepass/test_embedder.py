@@ -25,6 +25,7 @@ def test_create_bands_byte_rgba(tmp_image_rgba, session_manager):
     assert (bands_bitmask >> 3) & 1 == 1
     assert (bands_bitmask >> 4) & 1 == 0
 
+
 def test_create_bands_byte_bw(tmp_image_bw, session_manager):
     embedder = Embedder(tmp_image_bw, session_manager=session_manager)
     bands_bitmask = embedder._create_bands_bitmask()
@@ -43,6 +44,7 @@ def test_header_size(tmp_image_rgb, session_manager):
     key = key_generator()
     header = embedder._create_header(key, len(MESSAGE))
     assert len(header) == 24
+
 
 def test_unpack_header(tmp_image_rgb, session_manager):
     embedder = Embedder(tmp_image_rgb, session_manager=session_manager)

@@ -5,7 +5,10 @@ Handles automatic migration from old plain-text schema to encrypted schema.
 """
 
 from passwault.core.cli import cli
-from passwault.core.database.migrations import check_migration_needed, migrate_from_v1_to_v2
+from passwault.core.database.migrations import (
+    check_migration_needed,
+    migrate_from_v1_to_v2,
+)
 from passwault.core.database.models import Base, engine
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager

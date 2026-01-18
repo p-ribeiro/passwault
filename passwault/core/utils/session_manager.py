@@ -23,6 +23,7 @@ def check_session(func):
     DEPRECATED: Use @require_auth decorator from decorators.py instead.
     This decorator is kept for backward compatibility with existing code.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not args:
@@ -121,6 +122,7 @@ class SessionManager:
             # Restore encryption key to memory if present
             if "encryption_key" in session_data:
                 import base64
+
                 self._encryption_key_cache = base64.b64decode(
                     session_data["encryption_key"]
                 )
@@ -159,6 +161,7 @@ class SessionManager:
         if self._encryption_key_cache is not None:
             # Store encryption key as base64 for JSON serialization
             import base64
+
             session_data["encryption_key"] = base64.b64encode(
                 self._encryption_key_cache
             ).decode("utf-8")

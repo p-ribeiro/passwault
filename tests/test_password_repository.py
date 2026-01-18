@@ -156,11 +156,7 @@ class TestPasswordSave:
 
         session = SessionLocal()
         try:
-            entry = (
-                session.query(PasswordManager)
-                .filter_by(id=result.result)
-                .first()
-            )
+            entry = session.query(PasswordManager).filter_by(id=result.result).first()
 
             # Encrypted password should not equal plaintext
             assert entry.encrypted_password != plaintext_password.encode()
@@ -275,7 +271,9 @@ class TestPasswordRetrieval:
         assert result.ok is False
         assert "no passwords found" in result.result.lower()
 
-    def test_decryption_with_wrong_key(self, test_db, password_repo, test_user, crypto_service):
+    def test_decryption_with_wrong_key(
+        self, test_db, password_repo, test_user, crypto_service
+    ):
         """Test that decryption fails with wrong key."""
         # Save password
         password_repo.save_password(
@@ -420,7 +418,9 @@ class TestResourceCheck:
 
     def test_check_resource_exists_false(self, test_db, password_repo, test_user):
         """Test checking non-existent resource."""
-        result = password_repo.check_resource_exists(test_user["user_id"], "nonexistent")
+        result = password_repo.check_resource_exists(
+            test_user["user_id"], "nonexistent"
+        )
 
         assert result.ok is True
         assert result.result is False
@@ -467,9 +467,7 @@ class TestMultiUserIsolation:
         password_repo.save_password(user1.id, key1, "github", "user1password")
 
         # User 2 cannot see user 1's password
-        result = password_repo.get_password_by_resource_name(
-            user2.id, key2, "github"
-        )
+        result = password_repo.get_password_by_resource_name(user2.id, key2, "github")
         assert result.ok is False
 
         # User 2 can save their own password with same resource name
