@@ -270,6 +270,10 @@ class SessionManager:
         # Remove session file
         if path.exists(self.session_file_path):
             remove(self.session_file_path)
+        
+        # Remove encryption key file
+        if path.exists(self.key_file_path):
+            remove(self.key_file_path)
 
     def get_session(self) -> Optional[Dict[str, Any]]:
         """Get current session data.
