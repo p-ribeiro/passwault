@@ -126,6 +126,7 @@ def login(
     user_data = auth_result.result
 
     # Create session with encryption key caching
+    assert isinstance(user_data, dict), "user_data should be a dict"
     session_manager.create_session(user_data)
 
     Logger.info(f"Login successful! Welcome back, {username}.")
@@ -204,8 +205,11 @@ def change_master_password(
     """
     # Get current user info
     user_id = session_manager.get_user_id()
+    assert user_id is not None, "require_auth guarantees an active session"
     username = session_manager.get_username()
+    assert username is not None, "require_auth guarantees an username"
     current_encryption_key = session_manager.get_encryption_key()
+    assert current_encryption_key is not None, "require_auth guarantees encryption key"
 
     # Prompt for old password if not provided
     if old_password is None:
@@ -225,7 +229,9 @@ def change_master_password(
         return
 
     # Verify the encryption key matches (sanity check)
+    assert isinstance(auth_result.result, dict), "auth_result.result should be dict after successful authentication"
     old_encryption_key = auth_result.result["encryption_key"]
+    
     if old_encryption_key != current_encryption_key:
         Logger.error("Encryption key mismatch. Please logout and login again.")
         return
@@ -287,6 +293,7 @@ def change_master_password(
 
         # Re-encrypt all passwords
         for pwd_data in passwords:
+            assert isinstance(pwd_data, dict), "pwd should be a dict"
             # Get the password entry from database
             from passwault.core.database.models import PasswordManager
 

@@ -83,7 +83,7 @@ class PasswordManager(Base):
     )
     resource_name: Mapped[str] = mapped_column(String(100), nullable=False)
     username: Mapped[str] = mapped_column(String(255), nullable=True)
-    encrypted_password: Mapped[str] = mapped_column(LargeBinary, nullable=False)
+    encrypted_password: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     website: Mapped[str] = mapped_column(String(255), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
