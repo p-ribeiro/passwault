@@ -76,14 +76,14 @@ def authenticated_user(test_db, session_manager):
     user_repo = UserRepository()
 
     # Register user
-    reg_result = user_repo.register("testuser", "SecurePass123!", "test@example.com")
-    assert reg_result.ok
+    user_id = user_repo.register("testuser", "SecurePass123!", "test@example.com")
+    assert user_id is not None
 
     # Authenticate and create session
-    auth_result = user_repo.authenticate("testuser", "SecurePass123!")
-    assert auth_result.ok
+    user_data = user_repo.authenticate("testuser", "SecurePass123!")
+    assert user_data is not None
 
-    session_manager.create_session(auth_result.result)
+    session_manager.create_session(user_data)
 
     yield session_manager
 
@@ -112,14 +112,14 @@ class TestSavePasswordCommand:
         from passwault.core.database.password_manager import PasswordRepository
 
         repo = PasswordRepository()
-        result = repo.get_password_by_resource_name(
+        password_data = repo.get_password_by_resource_name(
             authenticated_user.get_user_id(),
             authenticated_user.get_encryption_key(),
             "github",
         )
 
-        assert result.ok
-        assert result.result["password"] == "mypassword123"
+        assert password_data is not None
+        assert password_data["password"] == "mypassword123"
 
     def test_save_password_minimal_fields(self, test_db, authenticated_user):
         """Test saving password with minimal fields."""
@@ -128,13 +128,13 @@ class TestSavePasswordCommand:
         from passwault.core.database.password_manager import PasswordRepository
 
         repo = PasswordRepository()
-        result = repo.get_password_by_resource_name(
+        password_data = repo.get_password_by_resource_name(
             authenticated_user.get_user_id(),
             authenticated_user.get_encryption_key(),
             "gitlab",
         )
 
-        assert result.ok
+        assert password_data is not None
 
 
 class TestLoadPasswordCommand:
@@ -208,13 +208,13 @@ class TestUpdatePasswordCommand:
         from passwault.core.database.password_manager import PasswordRepository
 
         repo = PasswordRepository()
-        result = repo.get_password_by_resource_name(
+        password_data = repo.get_password_by_resource_name(
             authenticated_user.get_user_id(),
             authenticated_user.get_encryption_key(),
             "github",
         )
 
-        assert result.result["password"] == "newpassword"
+        assert password_data["password"] == "newpassword"
 
     def test_update_password_with_metadata(self, test_db, authenticated_user):
         """Test updating password with metadata."""
@@ -233,14 +233,14 @@ class TestUpdatePasswordCommand:
         from passwault.core.database.password_manager import PasswordRepository
 
         repo = PasswordRepository()
-        result = repo.get_password_by_resource_name(
+        password_data = repo.get_password_by_resource_name(
             authenticated_user.get_user_id(),
             authenticated_user.get_encryption_key(),
             "github",
         )
 
-        assert result.result["password"] == "newpassword"
-        assert result.result["username"] == "newuser"
+        assert password_data["password"] == "newpassword"
+        assert password_data["username"] == "newuser"
 
     def test_update_nonexistent_password(self, test_db, authenticated_user):
         """Test updating non-existent password."""
@@ -266,17 +266,17 @@ class TestDeletePasswordCommand:
         # Delete password
         delete_password("github", session_manager=authenticated_user)
 
-        # Verify deletion
+        # Verify deletion - should raise ResourceNotFoundError
         from passwault.core.database.password_manager import PasswordRepository
+        from passwault.core.utils.local_types import ResourceNotFoundError
 
         repo = PasswordRepository()
-        result = repo.get_password_by_resource_name(
-            authenticated_user.get_user_id(),
-            authenticated_user.get_encryption_key(),
-            "github",
-        )
-
-        assert result.ok is False
+        with pytest.raises(ResourceNotFoundError):
+            repo.get_password_by_resource_name(
+                authenticated_user.get_user_id(),
+                authenticated_user.get_encryption_key(),
+                "github",
+            )
 
     def test_delete_nonexistent_password(self, test_db, authenticated_user):
         """Test deleting non-existent password."""
@@ -333,16 +333,17 @@ class TestPasswordCommandsIntegration:
         # Delete
         delete_password("github", session_manager=authenticated_user)
 
-        # Verify deletion
+        # Verify deletion - should raise ResourceNotFoundError
         from passwault.core.database.password_manager import PasswordRepository
+        from passwault.core.utils.local_types import ResourceNotFoundError
 
         repo = PasswordRepository()
-        result = repo.get_password_by_resource_name(
-            authenticated_user.get_user_id(),
-            authenticated_user.get_encryption_key(),
-            "github",
-        )
-        assert result.ok is False
+        with pytest.raises(ResourceNotFoundError):
+            repo.get_password_by_resource_name(
+                authenticated_user.get_user_id(),
+                authenticated_user.get_encryption_key(),
+                "github",
+            )
 
     def test_multiple_passwords_for_user(self, test_db, authenticated_user):
         """Test managing multiple passwords for a user."""
@@ -361,11 +362,11 @@ class TestPasswordCommandsIntegration:
         from passwault.core.database.password_manager import PasswordRepository
 
         repo = PasswordRepository()
-        result = repo.get_all_passwords(
+        passwords = repo.get_all_passwords(
             authenticated_user.get_user_id(),
             authenticated_user.get_encryption_key(),
         )
-        assert len(result.result) == 2
+        assert len(passwords) == 2
 
     def test_commands_block_after_logout(self, test_db, authenticated_user):
         """Test that commands are blocked after logout."""

@@ -546,24 +546,20 @@ class TestChangeMasterPassword:
         user_id = session_manager.get_user_id()
         encryption_key = session_manager.get_encryption_key()
 
-        result = repo.get_all_passwords(user_id, encryption_key)
-        assert result.ok
-        assert len(result.result) == 3
+        passwords = repo.get_all_passwords(user_id, encryption_key)
+        assert len(passwords) == 3
 
         # Verify specific passwords
         github = repo.get_password_by_resource_name(user_id, encryption_key, "github")
-        assert github.ok
-        assert github.result["password"] == "github_pass"
+        assert github["password"] == "github_pass"
 
         gitlab = repo.get_password_by_resource_name(user_id, encryption_key, "gitlab")
-        assert gitlab.ok
-        assert gitlab.result["password"] == "gitlab_pass"
+        assert gitlab["password"] == "gitlab_pass"
 
         bitbucket = repo.get_password_by_resource_name(
             user_id, encryption_key, "bitbucket"
         )
-        assert bitbucket.ok
-        assert bitbucket.result["password"] == "bitbucket_pass"
+        assert bitbucket["password"] == "bitbucket_pass"
 
     def test_change_password_updates_session(self, test_db, session_manager):
         """Test change password updates session with new encryption key."""

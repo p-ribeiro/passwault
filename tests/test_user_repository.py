@@ -13,6 +13,11 @@ from sqlalchemy.orm import sessionmaker
 from passwault.core.database.models import Base, User
 from passwault.core.database.user_repository import UserRepository
 from passwault.core.services.crypto_service import CryptoService
+from passwault.core.utils.local_types import (
+    AuthenticationError,
+    ResourceExistsError,
+    ResourceNotFoundError,
+)
 
 
 @pytest.fixture
@@ -60,53 +65,43 @@ class TestUserRegistration:
 
     def test_register_user_success(self, test_db, user_repo):
         """Test successful user registration."""
-        result = user_repo.register("testuser", "SecurePassword123!")
+        user_id = user_repo.register("testuser", "SecurePassword123!")
 
-        assert result.ok is True
-        assert isinstance(result.result, int)  # User ID
-        assert result.result > 0
+        assert isinstance(user_id, int)  # User ID
+        assert user_id > 0
 
     def test_register_user_with_email(self, test_db, user_repo):
         """Test user registration with email."""
-        result = user_repo.register(
+        user_id = user_repo.register(
             "testuser", "SecurePassword123!", email="test@example.com"
         )
 
-        assert result.ok is True
-        user_id = result.result
-
         # Verify user was created with email
         user_data = user_repo.get_user_by_id(user_id)
-        assert user_data.ok is True
-        assert user_data.result["email"] == "test@example.com"
+        assert user_data["email"] == "test@example.com"
 
     def test_register_duplicate_username(self, test_db, user_repo):
         """Test that registering duplicate username fails."""
         # Register first user
-        result1 = user_repo.register("testuser", "Password1")
-        assert result1.ok is True
+        user_repo.register("testuser", "Password1")
 
         # Try to register with same username
-        result2 = user_repo.register("testuser", "Password2")
-        assert result2.ok is False
-        assert "already exists" in result2.result.lower()
+        with pytest.raises(ResourceExistsError, match="already exists"):
+            user_repo.register("testuser", "Password2")
 
     def test_register_duplicate_email(self, test_db, user_repo):
         """Test that registering duplicate email fails."""
         # Register first user
-        result1 = user_repo.register("user1", "Password1", email="test@example.com")
-        assert result1.ok is True
+        user_repo.register("user1", "Password1", email="test@example.com")
 
         # Try to register with same email
-        result2 = user_repo.register("user2", "Password2", email="test@example.com")
-        assert result2.ok is False
-        assert "already exists" in result2.result.lower()
+        with pytest.raises(ResourceExistsError, match="already exists"):
+            user_repo.register("user2", "Password2", email="test@example.com")
 
     def test_register_stores_hashed_password(self, test_db, user_repo, crypto_service):
         """Test that password is stored hashed, not plaintext."""
         password = "SecurePassword123!"
-        result = user_repo.register("testuser", password)
-        assert result.ok is True
+        user_repo.register("testuser", password)
 
         # Query user directly from database
         from passwault.core.database.models import SessionLocal
@@ -129,11 +124,8 @@ class TestUserRegistration:
 
     def test_register_generates_unique_salt(self, test_db, user_repo):
         """Test that each user gets a unique salt."""
-        result1 = user_repo.register("user1", "Password1")
-        result2 = user_repo.register("user2", "Password2")
-
-        assert result1.ok is True
-        assert result2.ok is True
+        user_repo.register("user1", "Password1")
+        user_repo.register("user2", "Password2")
 
         # Query users directly
         from passwault.core.database.models import SessionLocal
@@ -150,8 +142,7 @@ class TestUserRegistration:
 
     def test_register_sets_kdf_parameters(self, test_db, user_repo):
         """Test that KDF parameters are set correctly."""
-        result = user_repo.register("testuser", "Password123")
-        assert result.ok is True
+        user_repo.register("testuser", "Password123")
 
         from passwault.core.database.models import SessionLocal
 
@@ -174,16 +165,14 @@ class TestUserAuthentication:
         # Register user
         username = "testuser"
         password = "SecurePassword123!"
-        reg_result = user_repo.register(username, password)
-        assert reg_result.ok is True
+        user_repo.register(username, password)
 
         # Authenticate
-        auth_result = user_repo.authenticate(username, password)
-        assert auth_result.ok is True
-        assert "user_id" in auth_result.result
-        assert "username" in auth_result.result
-        assert "encryption_key" in auth_result.result
-        assert auth_result.result["username"] == username
+        auth_data = user_repo.authenticate(username, password)
+        assert "user_id" in auth_data
+        assert "username" in auth_data
+        assert "encryption_key" in auth_data
+        assert auth_data["username"] == username
 
     def test_authenticate_wrong_password(self, test_db, user_repo):
         """Test authentication with wrong password."""
@@ -193,23 +182,21 @@ class TestUserAuthentication:
         user_repo.register(username, password)
 
         # Try with wrong password
-        auth_result = user_repo.authenticate(username, "WrongPassword")
-        assert auth_result.ok is False
-        assert "invalid" in auth_result.result.lower()
+        with pytest.raises(AuthenticationError, match="Invalid password"):
+            user_repo.authenticate(username, "WrongPassword")
 
     def test_authenticate_nonexistent_user(self, test_db, user_repo):
         """Test authentication with non-existent user."""
-        auth_result = user_repo.authenticate("nonexistent", "password")
-        assert auth_result.ok is False
-        assert "not found" in auth_result.result.lower()
+        with pytest.raises(AuthenticationError, match="User not found"):
+            user_repo.authenticate("nonexistent", "password")
 
     def test_authenticate_case_sensitive(self, test_db, user_repo):
         """Test that authentication is case-sensitive."""
         user_repo.register("TestUser", "Password123")
 
         # Try with different case
-        result = user_repo.authenticate("testuser", "Password123")
-        assert result.ok is False
+        with pytest.raises((ResourceNotFoundError, AuthenticationError)):
+            user_repo.authenticate("testuser", "Password123")
 
     def test_authenticate_returns_encryption_key(self, test_db, user_repo):
         """Test that authentication returns encryption key."""
@@ -217,10 +204,9 @@ class TestUserAuthentication:
         password = "Password123"
 
         user_repo.register(username, password)
-        auth_result = user_repo.authenticate(username, password)
+        auth_data = user_repo.authenticate(username, password)
 
-        assert auth_result.ok is True
-        encryption_key = auth_result.result["encryption_key"]
+        encryption_key = auth_data["encryption_key"]
 
         assert isinstance(encryption_key, bytes)
         assert len(encryption_key) == 32  # 256 bits
@@ -236,11 +222,8 @@ class TestUserAuthentication:
         auth1 = user_repo.authenticate(username, password)
         auth2 = user_repo.authenticate(username, password)
 
-        assert auth1.ok is True
-        assert auth2.ok is True
-
-        key1 = auth1.result["encryption_key"]
-        key2 = auth2.result["encryption_key"]
+        key1 = auth1["encryption_key"]
+        key2 = auth2["encryption_key"]
 
         assert key1 == key2
 
@@ -254,8 +237,8 @@ class TestUserAuthentication:
         auth1 = user_repo.authenticate("user1", password)
         auth2 = user_repo.authenticate("user2", password)
 
-        key1 = auth1.result["encryption_key"]
-        key2 = auth2.result["encryption_key"]
+        key1 = auth1["encryption_key"]
+        key2 = auth2["encryption_key"]
 
         assert key1 != key2  # Different salts produce different keys
 
@@ -293,15 +276,12 @@ class TestUserRetrieval:
 
     def test_get_user_by_id(self, test_db, user_repo):
         """Test retrieving user by ID."""
-        reg_result = user_repo.register(
+        user_id = user_repo.register(
             "testuser", "Password123", email="test@example.com"
         )
-        user_id = reg_result.result
 
-        get_result = user_repo.get_user_by_id(user_id)
+        user_data = user_repo.get_user_by_id(user_id)
 
-        assert get_result.ok is True
-        user_data = get_result.result
         assert user_data["user_id"] == user_id
         assert user_data["username"] == "testuser"
         assert user_data["email"] == "test@example.com"
@@ -313,44 +293,36 @@ class TestUserRetrieval:
 
     def test_get_user_by_id_not_found(self, test_db, user_repo):
         """Test retrieving non-existent user by ID."""
-        result = user_repo.get_user_by_id(99999)
-
-        assert result.ok is False
-        assert "not found" in result.result.lower()
+        with pytest.raises(ResourceNotFoundError, match="not found"):
+            user_repo.get_user_by_id(99999)
 
     def test_get_user_by_username(self, test_db, user_repo):
         """Test retrieving user by username."""
         user_repo.register("testuser", "Password123", email="test@example.com")
 
-        get_result = user_repo.get_user_by_username("testuser")
+        user_data = user_repo.get_user_by_username("testuser")
 
-        assert get_result.ok is True
-        user_data = get_result.result
         assert user_data["username"] == "testuser"
         assert user_data["email"] == "test@example.com"
 
     def test_get_user_by_username_not_found(self, test_db, user_repo):
         """Test retrieving non-existent user by username."""
-        result = user_repo.get_user_by_username("nonexistent")
-
-        assert result.ok is False
-        assert "not found" in result.result.lower()
+        with pytest.raises(ResourceNotFoundError, match="not found"):
+            user_repo.get_user_by_username("nonexistent")
 
     def test_check_username_exists_true(self, test_db, user_repo):
         """Test checking if username exists (positive case)."""
         user_repo.register("testuser", "Password123")
 
-        result = user_repo.check_username_exists("testuser")
+        exists = user_repo.check_username_exists("testuser")
 
-        assert result.ok is True
-        assert result.result is True
+        assert exists is True
 
     def test_check_username_exists_false(self, test_db, user_repo):
         """Test checking if username exists (negative case)."""
-        result = user_repo.check_username_exists("nonexistent")
+        exists = user_repo.check_username_exists("nonexistent")
 
-        assert result.ok is True
-        assert result.result is False
+        assert exists is False
 
 
 class TestUserRepositoryIntegration:
@@ -363,22 +335,18 @@ class TestUserRepositoryIntegration:
         email = "test@example.com"
 
         # Step 1: Register
-        reg_result = user_repo.register(username, password, email)
-        assert reg_result.ok is True
-        user_id = reg_result.result
+        user_id = user_repo.register(username, password, email)
 
         # Step 2: Authenticate
-        auth_result = user_repo.authenticate(username, password)
-        assert auth_result.ok is True
-        assert auth_result.result["user_id"] == user_id
+        auth_data = user_repo.authenticate(username, password)
+        assert auth_data["user_id"] == user_id
 
-        encryption_key = auth_result.result["encryption_key"]
+        encryption_key = auth_data["encryption_key"]
 
         # Step 3: Retrieve user info
-        user_result = user_repo.get_user_by_id(user_id)
-        assert user_result.ok is True
-        assert user_result.result["username"] == username
-        assert user_result.result["email"] == email
+        user_data = user_repo.get_user_by_id(user_id)
+        assert user_data["username"] == username
+        assert user_data["email"] == email
 
         # Step 4: Verify encryption key works
         test_password = "TestPassword123"
@@ -398,8 +366,8 @@ class TestUserRepositoryIntegration:
         auth1 = user_repo.authenticate("user1", "Password1")
         auth2 = user_repo.authenticate("user2", "Password2")
 
-        key1 = auth1.result["encryption_key"]
-        key2 = auth2.result["encryption_key"]
+        key1 = auth1["encryption_key"]
+        key2 = auth2["encryption_key"]
 
         # Keys should be different
         assert key1 != key2
@@ -428,28 +396,24 @@ class TestUserRepositoryIntegration:
 
         # Register all users
         for username, password in users:
-            result = user_repo.register(username, password)
-            assert result.ok is True
+            user_repo.register(username, password)
 
         # Authenticate each user
         for username, password in users:
-            result = user_repo.authenticate(username, password)
-            assert result.ok is True
-            assert result.result["username"] == username
+            auth_data = user_repo.authenticate(username, password)
+            assert auth_data["username"] == username
 
     def test_username_check_before_registration(self, test_db, user_repo):
         """Test checking username availability before registration."""
         username = "testuser"
 
         # Check before registration
-        check1 = user_repo.check_username_exists(username)
-        assert check1.ok is True
-        assert check1.result is False
+        exists_before = user_repo.check_username_exists(username)
+        assert exists_before is False
 
         # Register
         user_repo.register(username, "Password123")
 
         # Check after registration
-        check2 = user_repo.check_username_exists(username)
-        assert check2.ok is True
-        assert check2.result is True
+        exists_after = user_repo.check_username_exists(username)
+        assert exists_after is True

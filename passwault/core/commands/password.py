@@ -10,6 +10,7 @@ from typing import Optional
 
 from passwault.core.database.password_manager import PasswordRepository
 from passwault.core.utils.decorators import require_auth
+from passwault.core.utils.local_types import PasswaultError
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager
 
@@ -18,11 +19,11 @@ from passwault.core.utils.session_manager import SessionManager
 def save_password(
     resource_name: str,
     password: str,
+    session_manager: SessionManager,
     username: Optional[str] = None,
     website: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[str] = None,
-    session_manager: SessionManager = None,
 ) -> None:
     """Save a new encrypted password entry.
 
@@ -48,34 +49,35 @@ def save_password(
 
     # Get user ID and encryption key from session
     user_id = session_manager.get_user_id()
+    assert user_id is not None, "require_auth guarantees an active session"
     encryption_key = session_manager.get_encryption_key()
+    assert encryption_key is not None, "require_auth guarantees encryption key"
 
     # Save password with encryption
     repo = PasswordRepository()
-    result = repo.save_password(
-        user_id=user_id,
-        encryption_key=encryption_key,
-        resource_name=resource_name,
-        password=password,
-        username=username,
-        website=website,
-        description=description,
-        tags=tags,
-    )
-
-    if not result.ok:
-        Logger.error(f"Error saving password: {result.result}")
+    try:
+        repo.save_password(
+            user_id=user_id,
+            encryption_key=encryption_key,
+            resource_name=resource_name,
+            password=password,
+            username=username,
+            website=website,
+            description=description,
+            tags=tags,
+        )
+        Logger.info(f"Password for '{resource_name}' saved successfully!")
+    except PasswaultError as e:
+        Logger.error(f"Error saving password: {str(e)}")
         return
-
-    Logger.info(f"Password for '{resource_name}' saved successfully!")
 
 
 @require_auth
 def load_password(
+    session_manager: SessionManager,
     resource_name: Optional[str] = None,
     username: Optional[str] = None,
     all_passwords: bool = False,
-    session_manager: SessionManager = None,
 ) -> None:
     """Load and decrypt password(s).
 
@@ -96,68 +98,62 @@ def load_password(
         Website: https://github.com
     """
     user_id = session_manager.get_user_id()
+    assert user_id is not None, "require_auth guarantees an active session"
     encryption_key = session_manager.get_encryption_key()
+    assert encryption_key is not None, "require_auth guarantees encryption key"
     repo = PasswordRepository()
 
-    # Load all passwords
-    if all_passwords:
-        result = repo.get_all_passwords(user_id, encryption_key)
+    try:
+        # Load all passwords
+        if all_passwords:
+            passwords = repo.get_all_passwords(user_id, encryption_key)
 
-        if not result.ok:
-            Logger.error(result.result)
+            if not passwords:
+                Logger.info("No passwords found")
+                return
+
+            Logger.info(f"\nFound {len(passwords)} password(s):\n")
+            for pwd in passwords:
+                _display_password_entry(pwd)
+
             return
 
-        if not result.result:
-            Logger.info("No passwords found")
+        # Load by resource name
+        if resource_name:
+            pwd_data = repo.get_password_by_resource_name(
+                user_id, encryption_key, resource_name
+            )
+            _display_password_entry(pwd_data)
             return
 
-        Logger.info(f"\nFound {len(result.result)} password(s):\n")
-        for pwd in result.result:
-            _display_password_entry(pwd)
+        # Load by username
+        if username:
+            passwords = repo.get_password_by_username(user_id, encryption_key, username)
 
+            Logger.info(
+                f"\nFound {len(passwords)} password(s) for username '{username}':\n"
+            )
+            for pwd in passwords:
+                _display_password_entry(pwd)
+
+            return
+
+        Logger.error("Please specify --resource-name, --username, or --all")
+
+    except PasswaultError as e:
+        Logger.error(str(e))
         return
-
-    # Load by resource name
-    if resource_name:
-        result = repo.get_password_by_resource_name(
-            user_id, encryption_key, resource_name
-        )
-
-        if not result.ok:
-            Logger.error(result.result)
-            return
-
-        _display_password_entry(result.result)
-        return
-
-    # Load by username
-    if username:
-        result = repo.get_password_by_username(user_id, encryption_key, username)
-
-        if not result.ok:
-            Logger.error(result.result)
-            return
-
-        Logger.info(
-            f"\nFound {len(result.result)} password(s) for username '{username}':\n"
-        )
-        for pwd in result.result:
-            _display_password_entry(pwd)
-
-        return
-
-    Logger.error("Please specify --resource-name, --username, or --all")
 
 
 @require_auth
 def update_password(
     resource_name: str,
     new_password: str,
+    session_manager: SessionManager,
     username: Optional[str] = None,
     website: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[str] = None,
-    session_manager: SessionManager = None,
 ) -> None:
     """Update an existing password entry.
 
@@ -181,31 +177,32 @@ def update_password(
         return
 
     user_id = session_manager.get_user_id()
+    assert user_id is not None, "require_auth guarantees an active session"
     encryption_key = session_manager.get_encryption_key()
+    assert encryption_key is not None, "require_auth guarantees encryption key"
 
     repo = PasswordRepository()
-    result = repo.update_password(
-        user_id=user_id,
-        encryption_key=encryption_key,
-        resource_name=resource_name,
-        new_password=new_password,
-        username=username,
-        website=website,
-        description=description,
-        tags=tags,
-    )
-
-    if not result.ok:
-        Logger.error(f"Error updating password: {result.result}")
+    try:
+        repo.update_password(
+            user_id=user_id,
+            encryption_key=encryption_key,
+            resource_name=resource_name,
+            new_password=new_password,
+            username=username,
+            website=website,
+            description=description,
+            tags=tags,
+        )
+        Logger.info(f"Password for '{resource_name}' updated successfully!")
+    except PasswaultError as e:
+        Logger.error(f"Error updating password: {str(e)}")
         return
-
-    Logger.info(f"Password for '{resource_name}' updated successfully!")
 
 
 @require_auth
 def delete_password(
     resource_name: str,
-    session_manager: SessionManager = None,
+    session_manager: SessionManager,
 ) -> None:
     """Delete a password entry.
 
@@ -224,15 +221,15 @@ def delete_password(
         return
 
     user_id = session_manager.get_user_id()
+    assert user_id is not None, "require_auth guarantees an session with user_id"
 
     repo = PasswordRepository()
-    result = repo.delete_password(user_id, resource_name)
-
-    if not result.ok:
-        Logger.error(f"Error deleting password: {result.result}")
+    try:
+        repo.delete_password(user_id, resource_name)
+        Logger.info(f"Password for '{resource_name}' deleted successfully!")
+    except PasswaultError as e:
+        Logger.error(f"Error deleting password: {str(e)}")
         return
-
-    Logger.info(f"Password for '{resource_name}' deleted successfully!")
 
 
 def generate_password(

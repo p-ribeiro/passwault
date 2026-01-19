@@ -11,7 +11,12 @@ from sqlalchemy.exc import IntegrityError
 from passwault.core.database import models
 from passwault.core.database.models import User
 from passwault.core.services.crypto_service import CryptoService
-from passwault.core.utils.local_types import Response, Success, Fail
+from passwault.core.utils.local_types import (
+    AuthenticationError,
+    DatabaseError,
+    ResourceNotFoundError,
+    ResourceExistsError,
+)
 
 
 class UserRepository:
@@ -27,7 +32,7 @@ class UserRepository:
 
     def register(
         self, username: str, master_password: str, email: Optional[str] = None
-    ) -> Response[int]:
+    ) -> int:
         """Register a new user with a master password.
 
         Creates a new user account with:
@@ -41,13 +46,16 @@ class UserRepository:
             email: Optional email address
 
         Returns:
-            Response[int]: Success with user_id, or Fail with error message
+            int: The user ID
+
+        Raises:
+            ResourceExistsError: If username or email already exists
+            DatabaseError: If database operation fails
 
         Example:
             >>> repo = UserRepository()
-            >>> result = repo.register("john", "SecurePass123!", "john@example.com")
-            >>> if result.ok:
-            ...     print(f"User registered with ID: {result.result}")
+            >>> user_id = repo.register("john", "SecurePass123!", "john@example.com")
+            >>> print(f"User registered with ID: {user_id}")
         """
         session = models.SessionLocal()
         try:
@@ -71,30 +79,33 @@ class UserRepository:
             session.commit()
             session.refresh(new_user)
 
-            return Success(new_user.id)
+            return new_user.id
 
         except IntegrityError as e:
             session.rollback()
             error_msg = str(e.orig) if hasattr(e, "orig") else str(e)
             if "UNIQUE constraint" in error_msg or "unique" in error_msg.lower():
                 if "username" in error_msg.lower():
-                    return Fail("Username already exists")
+                    raise ResourceExistsError("Username already exists")
                 elif "email" in error_msg.lower():
-                    return Fail("Email already exists")
+                    raise ResourceExistsError("Email already exists")
                 else:
-                    return Fail("Username or email already exists")
-            return Fail(f"Database integrity error: {error_msg}")
+                    raise ResourceExistsError("Username or email already exists")
+            raise DatabaseError(f"Database integrity error: {error_msg}")
+
+        except ResourceExistsError:
+            raise
 
         except Exception as e:
             session.rollback()
-            return Fail(f"Error during registration: {str(e)}")
+            raise DatabaseError(f"Error during registration: {str(e)}")
 
         finally:
             session.close()
 
     def authenticate(
         self, username: str, master_password: str
-    ) -> Response[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """Authenticate a user and derive their encryption key.
 
         Verifies the master password and derives the encryption key
@@ -105,20 +116,21 @@ class UserRepository:
             master_password: Master password to verify
 
         Returns:
-            Response[Dict]: Success with dict containing:
+            Dict: User data containing:
                 - user_id: The user's ID
                 - username: The username
                 - encryption_key: Derived encryption key (32 bytes)
                 - salt: The user's salt
                 - kdf_iterations: KDF iteration count
-            Or Fail with error message
+
+        Raises:
+            AuthenticationError: If user not found or invalid password
+            DatabaseError: If database operation fails
 
         Example:
             >>> repo = UserRepository()
-            >>> result = repo.authenticate("john", "SecurePass123!")
-            >>> if result.ok:
-            ...     user_data = result.result
-            ...     encryption_key = user_data["encryption_key"]
+            >>> user_data = repo.authenticate("john", "SecurePass123!")
+            >>> encryption_key = user_data["encryption_key"]
         """
         session = models.SessionLocal()
         try:
@@ -126,13 +138,13 @@ class UserRepository:
             user = session.query(User).filter_by(username=username).first()
 
             if not user:
-                return Fail("User not found")
+                raise AuthenticationError("User not found")
 
             # Verify master password
             if not self.crypto.verify_master_password(
                 master_password, user.master_password_hash
             ):
-                return Fail("Invalid password")
+                raise AuthenticationError("Invalid password")
 
             # Derive encryption key from master password
             encryption_key = self.crypto.derive_encryption_key(
@@ -146,107 +158,119 @@ class UserRepository:
             session.commit()
 
             # Return user data with encryption key
-            return Success(
-                {
-                    "user_id": user.id,
-                    "username": user.username,
-                    "encryption_key": encryption_key,
-                    "salt": user.salt,
-                    "kdf_iterations": user.kdf_iterations,
-                }
-            )
+            return {
+                "user_id": user.id,
+                "username": user.username,
+                "encryption_key": encryption_key,
+                "salt": user.salt,
+                "kdf_iterations": user.kdf_iterations,
+            }
+
+        except AuthenticationError:
+            raise
 
         except Exception as e:
             session.rollback()
-            return Fail(f"Error during authentication: {str(e)}")
+            raise DatabaseError(f"Error during authentication: {str(e)}")
 
         finally:
             session.close()
 
-    def get_user_by_id(self, user_id: int) -> Response[Dict[str, Any]]:
+    def get_user_by_id(self, user_id: int) -> Dict[str, Any]:
         """Get user information by user ID.
 
         Args:
             user_id: The user's ID
 
         Returns:
-            Response[Dict]: Success with user data (without sensitive info)
-                or Fail with error message
+            Dict: User data (without sensitive info)
+
+        Raises:
+            ResourceNotFoundError: If user not found
+            DatabaseError: If database operation fails
         """
         session = models.SessionLocal()
         try:
             user = session.query(User).filter_by(id=user_id).first()
 
             if not user:
-                return Fail("User not found")
+                raise ResourceNotFoundError("User not found")
 
-            return Success(
-                {
-                    "user_id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "created_at": user.created_at,
-                    "last_login": user.last_login,
-                }
-            )
+            return {
+                "user_id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "created_at": user.created_at,
+                "last_login": user.last_login,
+            }
+
+        except ResourceNotFoundError:
+            raise
 
         except Exception as e:
-            return Fail(f"Error retrieving user: {str(e)}")
+            raise DatabaseError(f"Error retrieving user: {str(e)}")
 
         finally:
             session.close()
 
-    def get_user_by_username(self, username: str) -> Response[Dict[str, Any]]:
+    def get_user_by_username(self, username: str) -> Dict[str, Any]:
         """Get user information by username.
 
         Args:
             username: The username to look up
 
         Returns:
-            Response[Dict]: Success with user data (without sensitive info)
-                or Fail with error message
+            Dict: User data (without sensitive info)
+
+        Raises:
+            ResourceNotFoundError: If user not found
+            DatabaseError: If database operation fails
         """
         session = models.SessionLocal()
         try:
             user = session.query(User).filter_by(username=username).first()
 
             if not user:
-                return Fail("User not found")
+                raise ResourceNotFoundError("User not found")
 
-            return Success(
-                {
-                    "user_id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "created_at": user.created_at,
-                    "last_login": user.last_login,
-                }
-            )
+            return {
+                "user_id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "created_at": user.created_at,
+                "last_login": user.last_login,
+            }
+
+        except ResourceNotFoundError:
+            raise
 
         except Exception as e:
-            return Fail(f"Error retrieving user: {str(e)}")
+            raise DatabaseError(f"Error retrieving user: {str(e)}")
 
         finally:
             session.close()
 
-    def check_username_exists(self, username: str) -> Response[bool]:
+    def check_username_exists(self, username: str) -> bool:
         """Check if a username already exists.
 
         Args:
             username: Username to check
 
         Returns:
-            Response[bool]: Success with True if exists, False otherwise
+            bool: True if exists, False otherwise
+
+        Raises:
+            DatabaseError: If database operation fails
         """
         session = models.SessionLocal()
         try:
             exists = (
                 session.query(User).filter_by(username=username).first() is not None
             )
-            return Success(exists)
+            return exists
 
         except Exception as e:
-            return Fail(f"Error checking username: {str(e)}")
+            raise DatabaseError(f"Error checking username: {str(e)}")
 
         finally:
             session.close()

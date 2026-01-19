@@ -10,6 +10,7 @@ from passwault.core.database.password_manager import PasswordRepository
 from passwault.core.database.user_repository import UserRepository
 from passwault.core.services.crypto_service import CryptoService
 from passwault.core.utils.decorators import require_auth
+from passwault.core.utils.local_types import PasswaultError
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.password import get_password_with_mask
 from passwault.core.utils.session_manager import SessionManager
@@ -60,28 +61,24 @@ def register(
 
     # Check if username already exists
     user_repo = UserRepository()
-    username_check = user_repo.check_username_exists(username)
+    try:
+        username_exists = user_repo.check_username_exists(username)
 
-    if not username_check.ok:
-        Logger.error(f"Error checking username: {username_check.result}")
+        if username_exists:
+            Logger.error(
+                f"Username '{username}' is already taken. Please choose another username."
+            )
+            return
+
+        # Register the user
+        user_id = user_repo.register(username, password, email)
+
+        Logger.info(f"User '{username}' registered successfully! (ID: {user_id})")
+        Logger.info(f"You can now login with: passwault auth login -u {username}")
+
+    except PasswaultError as e:
+        Logger.error(f"Registration failed: {str(e)}")
         return
-
-    if username_check.result is True:
-        Logger.error(
-            f"Username '{username}' is already taken. Please choose another username."
-        )
-        return
-
-    # Register the user
-    result = user_repo.register(username, password, email)
-
-    if not result.ok:
-        Logger.error(f"Registration failed: {result.result}")
-        return
-
-    user_id = result.result
-    Logger.info(f"User '{username}' registered successfully! (ID: {user_id})")
-    Logger.info(f"You can now login with: passwault auth login -u {username}")
 
 
 def login(
@@ -116,23 +113,20 @@ def login(
 
     # Authenticate user
     user_repo = UserRepository()
-    auth_result = user_repo.authenticate(username, password)
+    try:
+        user_data = user_repo.authenticate(username, password)
 
-    if not auth_result.ok:
-        Logger.error(f"Login failed: {auth_result.result}")
+        # Create session with encryption key caching
+        session_manager.create_session(user_data)
+
+        Logger.info(f"Login successful! Welcome back, {username}.")
+        Logger.info(
+            f"Your session will expire after {session_manager.SESSION_TIMEOUT_MINUTES} minutes of inactivity."
+        )
+
+    except PasswaultError as e:
+        Logger.error(f"Login failed: {str(e)}")
         return
-
-    # Extract user data and encryption key
-    user_data = auth_result.result
-
-    # Create session with encryption key caching
-    assert isinstance(user_data, dict), "user_data should be a dict"
-    session_manager.create_session(user_data)
-
-    Logger.info(f"Login successful! Welcome back, {username}.")
-    Logger.info(
-        f"Your session will expire after {session_manager.SESSION_TIMEOUT_MINUTES} minutes of inactivity."
-    )
 
 
 def logout(session_manager: SessionManager) -> None:
@@ -222,18 +216,16 @@ def change_master_password(
 
     # Verify old password
     user_repo = UserRepository()
-    auth_result = user_repo.authenticate(username, old_password)
+    try:
+        user_data = user_repo.authenticate(username, old_password)
+        old_encryption_key = user_data["encryption_key"]
 
-    if not auth_result.ok:
+        if old_encryption_key != current_encryption_key:
+            Logger.error("Encryption key mismatch. Please logout and login again.")
+            return
+
+    except PasswaultError:
         Logger.error("Current password is incorrect")
-        return
-
-    # Verify the encryption key matches (sanity check)
-    assert isinstance(auth_result.result, dict), "auth_result.result should be dict after successful authentication"
-    old_encryption_key = auth_result.result["encryption_key"]
-    
-    if old_encryption_key != current_encryption_key:
-        Logger.error("Encryption key mismatch. Please logout and login again.")
         return
 
     # Prompt for new password if not provided
@@ -259,15 +251,12 @@ def change_master_password(
 
     # Load all passwords and decrypt them
     password_repo = PasswordRepository()
-    result = password_repo.get_all_passwords(user_id, old_encryption_key)
-
-    # Handle case where user has no passwords (not an error)
-    if not result.ok and "No passwords found" not in result.result:
-        Logger.error(f"Error loading passwords: {result.result}")
+    try:
+        passwords = password_repo.get_all_passwords(user_id, old_encryption_key)
+        Logger.info(f"\nRe-encrypting {len(passwords)} password(s)...")
+    except PasswaultError as e:
+        Logger.error(f"Error loading passwords: {str(e)}")
         return
-
-    passwords = result.result if result.ok and result.result else []
-    Logger.info(f"\nRe-encrypting {len(passwords)} password(s)...")
 
     # Generate new salt and encryption key
     crypto = CryptoService()
@@ -293,7 +282,6 @@ def change_master_password(
 
         # Re-encrypt all passwords
         for pwd_data in passwords:
-            assert isinstance(pwd_data, dict), "pwd should be a dict"
             # Get the password entry from database
             from passwault.core.database.models import PasswordManager
 
