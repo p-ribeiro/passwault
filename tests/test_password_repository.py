@@ -14,6 +14,11 @@ from sqlalchemy.orm import sessionmaker
 from passwault.core.database.models import Base, User, PasswordManager
 from passwault.core.database.password_manager import PasswordRepository
 from passwault.core.services.crypto_service import CryptoService
+from passwault.core.utils.local_types import (
+    ResourceNotFoundError,
+    ResourceExistsError,
+    EncryptionError,
+)
 
 
 @pytest.fixture
@@ -89,7 +94,7 @@ class TestPasswordSave:
 
     def test_save_password_success(self, test_db, password_repo, test_user):
         """Test successful password save with encryption."""
-        result = password_repo.save_password(
+        password_id = password_repo.save_password(
             user_id=test_user["user_id"],
             encryption_key=test_user["encryption_key"],
             resource_name="github",
@@ -100,20 +105,20 @@ class TestPasswordSave:
             tags="work,development",
         )
 
-        assert result.ok is True
-        assert isinstance(result.result, int)
-        assert result.result > 0
+        assert isinstance(password_id, int)
+        assert password_id > 0
 
     def test_save_password_minimal_fields(self, test_db, password_repo, test_user):
         """Test saving password with only required fields."""
-        result = password_repo.save_password(
+        password_id = password_repo.save_password(
             user_id=test_user["user_id"],
             encryption_key=test_user["encryption_key"],
             resource_name="gitlab",
             password="password123",
         )
 
-        assert result.ok is True
+        assert isinstance(password_id, int)
+        assert password_id > 0
 
     def test_save_password_duplicate_resource(self, test_db, password_repo, test_user):
         """Test that duplicate resource names are rejected."""
@@ -126,15 +131,13 @@ class TestPasswordSave:
         )
 
         # Try to save with same resource name
-        result = password_repo.save_password(
-            user_id=test_user["user_id"],
-            encryption_key=test_user["encryption_key"],
-            resource_name="github",
-            password="password2",
-        )
-
-        assert result.ok is False
-        assert "already exists" in result.result.lower()
+        with pytest.raises(ResourceExistsError, match="already exists"):
+            password_repo.save_password(
+                user_id=test_user["user_id"],
+                encryption_key=test_user["encryption_key"],
+                resource_name="github",
+                password="password2",
+            )
 
     def test_save_password_encrypts_data(
         self, test_db, password_repo, test_user, crypto_service
@@ -142,21 +145,19 @@ class TestPasswordSave:
         """Test that password is encrypted in database."""
         plaintext_password = "mypassword123"
 
-        result = password_repo.save_password(
+        password_id = password_repo.save_password(
             user_id=test_user["user_id"],
             encryption_key=test_user["encryption_key"],
             resource_name="github",
             password=plaintext_password,
         )
 
-        assert result.ok is True
-
         # Query database directly
         from passwault.core.database.models import SessionLocal
 
         session = SessionLocal()
         try:
-            entry = session.query(PasswordManager).filter_by(id=result.result).first()
+            entry = session.query(PasswordManager).filter_by(id=password_id).first()
 
             # Encrypted password should not equal plaintext
             assert entry.encrypted_password != plaintext_password.encode()
@@ -188,23 +189,20 @@ class TestPasswordRetrieval:
         )
 
         # Retrieve password
-        result = password_repo.get_password_by_resource_name(
+        password_data = password_repo.get_password_by_resource_name(
             test_user["user_id"], test_user["encryption_key"], "github"
         )
 
-        assert result.ok is True
-        assert result.result["resource_name"] == "github"
-        assert result.result["password"] == "mypassword123"
-        assert result.result["username"] == "john"
+        assert password_data["resource_name"] == "github"
+        assert password_data["password"] == "mypassword123"
+        assert password_data["username"] == "john"
 
     def test_get_password_not_found(self, test_db, password_repo, test_user):
         """Test retrieving non-existent password."""
-        result = password_repo.get_password_by_resource_name(
-            test_user["user_id"], test_user["encryption_key"], "nonexistent"
-        )
-
-        assert result.ok is False
-        assert "no password found" in result.result.lower()
+        with pytest.raises(ResourceNotFoundError, match="No password found"):
+            password_repo.get_password_by_resource_name(
+                test_user["user_id"], test_user["encryption_key"], "nonexistent"
+            )
 
     def test_get_password_by_username(self, test_db, password_repo, test_user):
         """Test retrieving passwords by username."""
@@ -224,14 +222,13 @@ class TestPasswordRetrieval:
             username="john",
         )
 
-        result = password_repo.get_password_by_username(
+        passwords = password_repo.get_password_by_username(
             test_user["user_id"], test_user["encryption_key"], "john"
         )
 
-        assert result.ok is True
-        assert len(result.result) == 2
-        assert result.result[0]["username"] == "john"
-        assert result.result[1]["username"] == "john"
+        assert len(passwords) == 2
+        assert passwords[0]["username"] == "john"
+        assert passwords[1]["username"] == "john"
 
     def test_get_all_passwords(self, test_db, password_repo, test_user):
         """Test retrieving all passwords for a user."""
@@ -255,21 +252,20 @@ class TestPasswordRetrieval:
             "pass3",
         )
 
-        result = password_repo.get_all_passwords(
+        passwords = password_repo.get_all_passwords(
             test_user["user_id"], test_user["encryption_key"]
         )
 
-        assert result.ok is True
-        assert len(result.result) == 3
+        assert len(passwords) == 3
 
     def test_get_all_passwords_empty(self, test_db, password_repo, test_user):
         """Test retrieving all passwords when none exist."""
-        result = password_repo.get_all_passwords(
+        passwords = password_repo.get_all_passwords(
             test_user["user_id"], test_user["encryption_key"]
         )
 
-        assert result.ok is False
-        assert "no passwords found" in result.result.lower()
+        assert passwords == []
+        assert len(passwords) == 0
 
     def test_decryption_with_wrong_key(
         self, test_db, password_repo, test_user, crypto_service
@@ -285,12 +281,10 @@ class TestPasswordRetrieval:
 
         # Try to retrieve with wrong key
         wrong_key = crypto_service.generate_salt(length=32)
-        result = password_repo.get_password_by_resource_name(
-            test_user["user_id"], wrong_key, "github"
-        )
-
-        assert result.ok is False
-        assert "decrypt" in result.result.lower()
+        with pytest.raises(EncryptionError, match="decrypt"):
+            password_repo.get_password_by_resource_name(
+                test_user["user_id"], wrong_key, "github"
+            )
 
 
 class TestPasswordUpdate:
@@ -307,20 +301,18 @@ class TestPasswordUpdate:
         )
 
         # Update password
-        result = password_repo.update_password(
+        password_repo.update_password(
             test_user["user_id"],
             test_user["encryption_key"],
             "github",
             "newpassword",
         )
 
-        assert result.ok is True
-
         # Verify new password
-        get_result = password_repo.get_password_by_resource_name(
+        password_data = password_repo.get_password_by_resource_name(
             test_user["user_id"], test_user["encryption_key"], "github"
         )
-        assert get_result.result["password"] == "newpassword"
+        assert password_data["password"] == "newpassword"
 
     def test_update_password_with_metadata(self, test_db, password_repo, test_user):
         """Test updating password with additional metadata."""
@@ -333,7 +325,7 @@ class TestPasswordUpdate:
         )
 
         # Update password and metadata
-        result = password_repo.update_password(
+        password_repo.update_password(
             test_user["user_id"],
             test_user["encryption_key"],
             "github",
@@ -344,27 +336,23 @@ class TestPasswordUpdate:
             tags="new,tags",
         )
 
-        assert result.ok is True
-
         # Verify updates
-        get_result = password_repo.get_password_by_resource_name(
+        password_data = password_repo.get_password_by_resource_name(
             test_user["user_id"], test_user["encryption_key"], "github"
         )
-        assert get_result.result["password"] == "newpassword"
-        assert get_result.result["username"] == "newuser"
-        assert get_result.result["website"] == "https://github.com/new"
+        assert password_data["password"] == "newpassword"
+        assert password_data["username"] == "newuser"
+        assert password_data["website"] == "https://github.com/new"
 
     def test_update_nonexistent_password(self, test_db, password_repo, test_user):
         """Test updating non-existent password."""
-        result = password_repo.update_password(
-            test_user["user_id"],
-            test_user["encryption_key"],
-            "nonexistent",
-            "newpassword",
-        )
-
-        assert result.ok is False
-        assert "no password found" in result.result.lower()
+        with pytest.raises(ResourceNotFoundError, match="No password found"):
+            password_repo.update_password(
+                test_user["user_id"],
+                test_user["encryption_key"],
+                "nonexistent",
+                "newpassword",
+            )
 
 
 class TestPasswordDelete:
@@ -381,22 +369,18 @@ class TestPasswordDelete:
         )
 
         # Delete password
-        result = password_repo.delete_password(test_user["user_id"], "github")
-
-        assert result.ok is True
+        password_repo.delete_password(test_user["user_id"], "github")
 
         # Verify deletion
-        get_result = password_repo.get_password_by_resource_name(
-            test_user["user_id"], test_user["encryption_key"], "github"
-        )
-        assert get_result.ok is False
+        with pytest.raises(ResourceNotFoundError):
+            password_repo.get_password_by_resource_name(
+                test_user["user_id"], test_user["encryption_key"], "github"
+            )
 
     def test_delete_nonexistent_password(self, test_db, password_repo, test_user):
         """Test deleting non-existent password."""
-        result = password_repo.delete_password(test_user["user_id"], "nonexistent")
-
-        assert result.ok is False
-        assert "no password found" in result.result.lower()
+        with pytest.raises(ResourceNotFoundError, match="No password found"):
+            password_repo.delete_password(test_user["user_id"], "nonexistent")
 
 
 class TestResourceCheck:
@@ -411,19 +395,17 @@ class TestResourceCheck:
             "password123",
         )
 
-        result = password_repo.check_resource_exists(test_user["user_id"], "github")
+        exists = password_repo.check_resource_exists(test_user["user_id"], "github")
 
-        assert result.ok is True
-        assert result.result is True
+        assert exists is True
 
     def test_check_resource_exists_false(self, test_db, password_repo, test_user):
         """Test checking non-existent resource."""
-        result = password_repo.check_resource_exists(
+        exists = password_repo.check_resource_exists(
             test_user["user_id"], "nonexistent"
         )
 
-        assert result.ok is True
-        assert result.result is False
+        assert exists is False
 
 
 class TestMultiUserIsolation:
@@ -467,23 +449,22 @@ class TestMultiUserIsolation:
         password_repo.save_password(user1.id, key1, "github", "user1password")
 
         # User 2 cannot see user 1's password
-        result = password_repo.get_password_by_resource_name(user2.id, key2, "github")
-        assert result.ok is False
+        with pytest.raises(ResourceNotFoundError):
+            password_repo.get_password_by_resource_name(user2.id, key2, "github")
 
         # User 2 can save their own password with same resource name
-        result = password_repo.save_password(user2.id, key2, "github", "user2password")
-        assert result.ok is True
+        password_repo.save_password(user2.id, key2, "github", "user2password")
 
         # Each user can only access their own password
-        user1_result = password_repo.get_password_by_resource_name(
+        user1_data = password_repo.get_password_by_resource_name(
             user1.id, key1, "github"
         )
-        user2_result = password_repo.get_password_by_resource_name(
+        user2_data = password_repo.get_password_by_resource_name(
             user2.id, key2, "github"
         )
 
-        assert user1_result.result["password"] == "user1password"
-        assert user2_result.result["password"] == "user2password"
+        assert user1_data["password"] == "user1password"
+        assert user2_data["password"] == "user2password"
 
     def test_user_cannot_decrypt_other_users_passwords(
         self, test_db, password_repo, crypto_service

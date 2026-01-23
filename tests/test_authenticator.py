@@ -415,9 +415,9 @@ class TestChangeMasterPassword:
         login("testuser", "OldPass123!", session_manager)
 
         # Save a password to verify re-encryption works
-        from passwault.core.commands.password import save_password
+        from passwault.core.commands.password import add_password
 
-        save_password(
+        add_password(
             resource_name="github",
             password="mypassword",
             session_manager=session_manager,
@@ -433,14 +433,14 @@ class TestChangeMasterPassword:
         assert session_manager.is_logged_in()
 
         # Verify password was re-encrypted and can be decrypted with new key
-        from passwault.core.commands.password import load_password
+        from passwault.core.commands.password import get_password
         from io import StringIO
         import sys
 
         # Capture output
         captured_output = StringIO()
         sys.stdout = captured_output
-        load_password(resource_name="github", session_manager=session_manager)
+        get_password(resource_name="github", session_manager=session_manager)
         sys.stdout = sys.__stdout__
 
         output = captured_output.getvalue()
@@ -530,11 +530,11 @@ class TestChangeMasterPassword:
         login("testuser", "OldPass123!", session_manager)
 
         # Save multiple passwords
-        from passwault.core.commands.password import save_password
+        from passwault.core.commands.password import add_password
 
-        save_password("github", "github_pass", session_manager=session_manager)
-        save_password("gitlab", "gitlab_pass", session_manager=session_manager)
-        save_password("bitbucket", "bitbucket_pass", session_manager=session_manager)
+        add_password("github", "github_pass", session_manager=session_manager)
+        add_password("gitlab", "gitlab_pass", session_manager=session_manager)
+        add_password("bitbucket", "bitbucket_pass", session_manager=session_manager)
 
         # Change master password
         change_master_password("OldPass123!", "NewPass456!", session_manager)
@@ -546,24 +546,20 @@ class TestChangeMasterPassword:
         user_id = session_manager.get_user_id()
         encryption_key = session_manager.get_encryption_key()
 
-        result = repo.get_all_passwords(user_id, encryption_key)
-        assert result.ok
-        assert len(result.result) == 3
+        passwords = repo.get_all_passwords(user_id, encryption_key)
+        assert len(passwords) == 3
 
         # Verify specific passwords
         github = repo.get_password_by_resource_name(user_id, encryption_key, "github")
-        assert github.ok
-        assert github.result["password"] == "github_pass"
+        assert github["password"] == "github_pass"
 
         gitlab = repo.get_password_by_resource_name(user_id, encryption_key, "gitlab")
-        assert gitlab.ok
-        assert gitlab.result["password"] == "gitlab_pass"
+        assert gitlab["password"] == "gitlab_pass"
 
         bitbucket = repo.get_password_by_resource_name(
             user_id, encryption_key, "bitbucket"
         )
-        assert bitbucket.ok
-        assert bitbucket.result["password"] == "bitbucket_pass"
+        assert bitbucket["password"] == "bitbucket_pass"
 
     def test_change_password_updates_session(self, test_db, session_manager):
         """Test change password updates session with new encryption key."""

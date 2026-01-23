@@ -1,22 +1,34 @@
-from typing import Generic, TypeVar, Union
+"""Custom exceptions for Passwault.
 
-T = TypeVar("T")
-
-
-class ResponseBase:
-    ok: bool
+This module defines custom exception classes used throughout the application.
+"""
 
 
-class Success(ResponseBase, Generic[T]):
-    def __init__(self, result: T):
-        self.ok = True
-        self.result = result
+class PasswaultError(Exception):
+    """Base exception for all Passwault errors."""
+    pass
 
 
-class Fail(ResponseBase):
-    def __init__(self, message: str):
-        self.ok = False
-        self.result = message
+class AuthenticationError(PasswaultError):
+    """Raised when authentication fails."""
+    pass
 
 
-Response = Union[Success[T], Fail]
+class DatabaseError(PasswaultError):
+    """Raised when database operations fail."""
+    pass
+
+
+class EncryptionError(PasswaultError):
+    """Raised when encryption/decryption operations fail."""
+    pass
+
+
+class ResourceNotFoundError(PasswaultError):
+    """Raised when a requested resource is not found."""
+    pass
+
+
+class ResourceExistsError(PasswaultError):
+    """Raised when trying to create a resource that already exists."""
+    pass

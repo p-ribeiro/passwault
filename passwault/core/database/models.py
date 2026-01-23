@@ -1,7 +1,6 @@
-from pathlib import Path
+import datetime as dt
 
 from sqlalchemy import (
-    Column,
     Integer,
     String,
     Text,
@@ -12,16 +11,16 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
 )
-from sqlalchemy.orm import relationship, declarative_base, sessionmaker
+from sqlalchemy.orm import (
+    relationship,
+    declarative_base,
+    sessionmaker,
+    Mapped,
+    mapped_column,
+)
 from sqlalchemy.sql import func
 
-
-def get_data_dir() -> Path:
-    """Get the application data directory, creating it if needed."""
-    data_dir = Path.home() / ".local" / "share" / "passwault"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir
-
+from passwault.core.utils.data_dir import get_data_dir
 
 Base = declarative_base()
 
@@ -36,18 +35,29 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(100), unique=True, nullable=False, index=True)
-    email = Column(String(255), unique=True, nullable=True)
-    master_password_hash = Column(LargeBinary, nullable=False)
-    salt = Column(LargeBinary, nullable=False)
-    kdf_algorithm = Column(String(50), default="PBKDF2", nullable=False)
-    kdf_iterations = Column(Integer, default=600000, nullable=False)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    updated_at = Column(
-        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False, index=True
     )
-    last_login = Column(DateTime, nullable=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=True)
+    master_password_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    salt: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    kdf_algorithm: Mapped[str] = mapped_column(
+        String(50), default="PBKDF2", nullable=False
+    )
+    kdf_iterations: Mapped[int] = mapped_column(Integer, default=600000, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    last_login: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationship to passwords
     passwords = relationship(
@@ -67,20 +77,25 @@ class PasswordManager(Base):
 
     __tablename__ = "password_manager"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    resource_name = Column(String(100), nullable=False)
-    username = Column(String(255), nullable=True)
-    encrypted_password = Column(LargeBinary, nullable=False)
-    nonce = Column(LargeBinary, nullable=False)
-    website = Column(String(255), nullable=True)
-    description = Column(Text, nullable=True)
-    tags = Column(String(255), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    updated_at = Column(
-        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    resource_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    username: Mapped[str] = mapped_column(String(255), nullable=True)
+    encrypted_password: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    website: Mapped[str] = mapped_column(String(255), nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    tags: Mapped[str] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     # Relationship to user

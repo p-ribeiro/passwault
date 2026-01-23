@@ -10,7 +10,12 @@ from sqlalchemy.exc import IntegrityError
 from passwault.core.database import models
 from passwault.core.database.models import PasswordManager
 from passwault.core.services.crypto_service import CryptoService
-from passwault.core.utils.local_types import Response, Success, Fail
+from passwault.core.utils.local_types import (
+    DatabaseError,
+    EncryptionError,
+    ResourceNotFoundError,
+    ResourceExistsError,
+)
 
 
 class PasswordRepository:
@@ -35,7 +40,7 @@ class PasswordRepository:
         website: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[str] = None,
-    ) -> Response[int]:
+    ) -> int:
         """Save a new password entry with encryption.
 
         Encrypts the password using AES-256-GCM before storing in database.
@@ -52,18 +57,21 @@ class PasswordRepository:
             tags: Optional comma-separated tags
 
         Returns:
-            Response[int]: Success with password entry ID, or Fail with error message
+            int: The password entry ID
+
+        Raises:
+            ResourceExistsError: If password for resource_name already exists
+            DatabaseError: If database operation fails
 
         Example:
             >>> repo = PasswordRepository()
-            >>> result = repo.save_password(
+            >>> entry_id = repo.save_password(
             ...     user_id=1,
             ...     encryption_key=b"...",
             ...     resource_name="github",
             ...     password="mypassword123"
             ... )
-            >>> if result.ok:
-            ...     print(f"Password saved with ID: {result.result}")
+            >>> print(f"Password saved with ID: {entry_id}")
         """
         session = models.SessionLocal()
         try:
@@ -86,25 +94,25 @@ class PasswordRepository:
             session.commit()
             session.refresh(password_entry)
 
-            return Success(password_entry.id)
+            return password_entry.id
 
         except IntegrityError:
             session.rollback()
-            return Fail(
+            raise ResourceExistsError(
                 f"Password for '{resource_name}' already exists. "
                 "Use update operation to change it."
             )
 
         except Exception as e:
             session.rollback()
-            return Fail(f"Error saving password: {str(e)}")
+            raise DatabaseError(f"Error saving password: {str(e)}")
 
         finally:
             session.close()
 
     def get_password_by_resource_name(
         self, user_id: int, encryption_key: bytes, resource_name: str
-    ) -> Response[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """Retrieve and decrypt password by resource name.
 
         Args:
@@ -113,14 +121,17 @@ class PasswordRepository:
             resource_name: Resource name to search for
 
         Returns:
-            Response[Dict]: Success with password data (including decrypted password),
-                or Fail with error message
+            Dict: Password data including decrypted password
+
+        Raises:
+            ResourceNotFoundError: If no password found for resource
+            EncryptionError: If decryption fails
+            DatabaseError: If database operation fails
 
         Example:
-            >>> result = repo.get_password_by_resource_name(1, key, "github")
-            >>> if result.ok:
-            ...     print(f"Username: {result.result['username']}")
-            ...     print(f"Password: {result.result['password']}")
+            >>> pwd_data = repo.get_password_by_resource_name(1, key, "github")
+            >>> print(f"Username: {pwd_data['username']}")
+            >>> print(f"Password: {pwd_data['password']}")
         """
         session = models.SessionLocal()
         try:
@@ -131,7 +142,9 @@ class PasswordRepository:
             )
 
             if not entry:
-                return Fail(f"No password found for resource '{resource_name}'")
+                raise ResourceNotFoundError(
+                    f"No password found for resource '{resource_name}'"
+                )
 
             # Decrypt password
             try:
@@ -139,34 +152,35 @@ class PasswordRepository:
                     entry.encrypted_password, entry.nonce, encryption_key
                 )
             except Exception as decrypt_error:
-                return Fail(
+                raise EncryptionError(
                     f"Error decrypting password: {str(decrypt_error)}. "
                     "Your encryption key may be incorrect."
                 )
 
-            return Success(
-                {
-                    "id": entry.id,
-                    "resource_name": entry.resource_name,
-                    "username": entry.username,
-                    "password": decrypted_password,
-                    "website": entry.website,
-                    "description": entry.description,
-                    "tags": entry.tags,
-                    "created_at": entry.created_at,
-                    "updated_at": entry.updated_at,
-                }
-            )
+            return {
+                "id": entry.id,
+                "resource_name": entry.resource_name,
+                "username": entry.username,
+                "password": decrypted_password,
+                "website": entry.website,
+                "description": entry.description,
+                "tags": entry.tags,
+                "created_at": entry.created_at,
+                "updated_at": entry.updated_at,
+            }
+
+        except (ResourceNotFoundError, EncryptionError):
+            raise
 
         except Exception as e:
-            return Fail(f"Error retrieving password: {str(e)}")
+            raise DatabaseError(f"Error retrieving password: {str(e)}")
 
         finally:
             session.close()
 
     def get_password_by_username(
         self, user_id: int, encryption_key: bytes, username: str
-    ) -> Response[List[Dict[str, Any]]]:
+    ) -> List[Dict[str, Any]]:
         """Retrieve and decrypt passwords by username.
 
         Multiple passwords may have the same username, so returns a list.
@@ -177,8 +191,12 @@ class PasswordRepository:
             username: Username to search for
 
         Returns:
-            Response[List[Dict]]: Success with list of password data,
-                or Fail with error message
+            List[Dict]: List of password data
+
+        Raises:
+            ResourceNotFoundError: If no passwords found for username
+            EncryptionError: If no passwords could be decrypted
+            DatabaseError: If database operation fails
         """
         session = models.SessionLocal()
         try:
@@ -189,7 +207,9 @@ class PasswordRepository:
             )
 
             if not entries:
-                return Fail(f"No passwords found for username '{username}'")
+                raise ResourceNotFoundError(
+                    f"No passwords found for username '{username}'"
+                )
 
             results = []
             for entry in entries:
@@ -215,21 +235,24 @@ class PasswordRepository:
                     continue
 
             if not results:
-                return Fail(
+                raise EncryptionError(
                     f"Could not decrypt any passwords for username '{username}'"
                 )
 
-            return Success(results)
+            return results
+
+        except (ResourceNotFoundError, EncryptionError):
+            raise
 
         except Exception as e:
-            return Fail(f"Error retrieving passwords: {str(e)}")
+            raise DatabaseError(f"Error retrieving passwords: {str(e)}")
 
         finally:
             session.close()
 
     def get_all_passwords(
         self, user_id: int, encryption_key: bytes
-    ) -> Response[List[Dict[str, Any]]]:
+    ) -> List[Dict[str, Any]]:
         """Retrieve and decrypt all passwords for a user.
 
         Args:
@@ -237,15 +260,18 @@ class PasswordRepository:
             encryption_key: User's encryption key for decryption
 
         Returns:
-            Response[List[Dict]]: Success with list of all password data,
-                or Fail with error message
+            List[Dict]: List of all password data (may be empty list)
+
+        Raises:
+            EncryptionError: If no passwords could be decrypted
+            DatabaseError: If database operation fails
         """
         session = models.SessionLocal()
         try:
             entries = session.query(PasswordManager).filter_by(user_id=user_id).all()
 
             if not entries:
-                return Fail("No passwords found")
+                return []
 
             results = []
             for entry in entries:
@@ -270,13 +296,16 @@ class PasswordRepository:
                     # Skip entries that can't be decrypted
                     continue
 
-            if not results:
-                return Fail("Could not decrypt any passwords")
+            if entries and not results:
+                raise EncryptionError("Could not decrypt any passwords")
 
-            return Success(results)
+            return results
+
+        except EncryptionError:
+            raise
 
         except Exception as e:
-            return Fail(f"Error retrieving passwords: {str(e)}")
+            raise DatabaseError(f"Error retrieving passwords: {str(e)}")
 
         finally:
             session.close()
@@ -291,7 +320,7 @@ class PasswordRepository:
         website: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[str] = None,
-    ) -> Response[bool]:
+    ) -> None:
         """Update an existing password entry.
 
         Args:
@@ -304,8 +333,9 @@ class PasswordRepository:
             description: Optional new description
             tags: Optional new tags
 
-        Returns:
-            Response[bool]: Success(True) if updated, Fail with error message otherwise
+        Raises:
+            ResourceNotFoundError: If no password found for resource
+            DatabaseError: If database operation fails
         """
         session = models.SessionLocal()
         try:
@@ -316,7 +346,9 @@ class PasswordRepository:
             )
 
             if not entry:
-                return Fail(f"No password found for resource '{resource_name}'")
+                raise ResourceNotFoundError(
+                    f"No password found for resource '{resource_name}'"
+                )
 
             # Encrypt new password
             ciphertext, nonce = self.crypto.encrypt_password(
@@ -337,24 +369,27 @@ class PasswordRepository:
                 entry.tags = tags
 
             session.commit()
-            return Success(True)
+
+        except ResourceNotFoundError:
+            raise
 
         except Exception as e:
             session.rollback()
-            return Fail(f"Error updating password: {str(e)}")
+            raise DatabaseError(f"Error updating password: {str(e)}")
 
         finally:
             session.close()
 
-    def delete_password(self, user_id: int, resource_name: str) -> Response[bool]:
+    def delete_password(self, user_id: int, resource_name: str) -> None:
         """Delete a password entry.
 
         Args:
             user_id: User's database ID
             resource_name: Resource name to delete
 
-        Returns:
-            Response[bool]: Success(True) if deleted, Fail with error message otherwise
+        Raises:
+            ResourceNotFoundError: If no password found for resource
+            DatabaseError: If database operation fails
         """
         session = models.SessionLocal()
         try:
@@ -365,20 +400,24 @@ class PasswordRepository:
             )
 
             if not entry:
-                return Fail(f"No password found for resource '{resource_name}'")
+                raise ResourceNotFoundError(
+                    f"No password found for resource '{resource_name}'"
+                )
 
             session.delete(entry)
             session.commit()
-            return Success(True)
+
+        except ResourceNotFoundError:
+            raise
 
         except Exception as e:
             session.rollback()
-            return Fail(f"Error deleting password: {str(e)}")
+            raise DatabaseError(f"Error deleting password: {str(e)}")
 
         finally:
             session.close()
 
-    def check_resource_exists(self, user_id: int, resource_name: str) -> Response[bool]:
+    def check_resource_exists(self, user_id: int, resource_name: str) -> bool:
         """Check if a password exists for a resource.
 
         Args:
@@ -386,7 +425,10 @@ class PasswordRepository:
             resource_name: Resource name to check
 
         Returns:
-            Response[bool]: Success with True if exists, False otherwise
+            bool: True if exists, False otherwise
+
+        Raises:
+            DatabaseError: If database operation fails
         """
         session = models.SessionLocal()
         try:
@@ -396,10 +438,10 @@ class PasswordRepository:
                 .first()
                 is not None
             )
-            return Success(exists)
+            return exists
 
         except Exception as e:
-            return Fail(f"Error checking resource: {str(e)}")
+            raise DatabaseError(f"Error checking resource: {str(e)}")
 
         finally:
             session.close()
