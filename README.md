@@ -1,5 +1,11 @@
 # Passwault
 
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
+[![Tests](https://github.com/p-ribeiro/passwault/actions/workflows/python-package.yml/badge.svg)](https://github.com/p-ribeiro/passwault/actions/workflows/python-package.yml)
+[![CodeQL](https://github.com/p-ribeiro/passwault/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/p-ribeiro/passwault/actions/workflows/github-code-scanning/codeql)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A secure, local-first password manager with military-grade encryption and image steganography capabilities.
 
 ## 🔐 Overview
@@ -63,14 +69,14 @@ Passwault is a command-line password manager that prioritizes security and priva
    # Enter your master password when prompted
    ```
 
-3. **Save your first password**:
+3. **Add your first password**:
    ```bash
-   uv run passwault save -n github -p "your_github_password" -u "your_username"
+   uv run passwault add -n github -p "your_github_password" -u "your_username"
    ```
 
 4. **Retrieve your password**:
    ```bash
-   uv run passwault load -n github
+   uv run passwault get -n github
    ```
 
 ## 📚 Complete Command Reference
@@ -111,9 +117,9 @@ passwault auth change-password
 
 ### Password Management
 
-#### Save a Password
+#### Add a Password
 ```bash
-passwault save -n <resource-name> -p <password> [options]
+passwault add -n <resource-name> -p <password> [options]
 
 Options:
   -u, --username        Username associated with this password
@@ -122,25 +128,25 @@ Options:
   -t, --tags            Comma-separated tags
 
 # Examples
-passwault save -n github -p "mypassword123" -u "john"
-passwault save -n aws -p "complex_pass" -w "https://aws.amazon.com" -t "cloud,work"
+passwault add -n github -p "mypassword123" -u "john"
+passwault add -n aws -p "complex_pass" -w "https://aws.amazon.com" -t "cloud,work"
 ```
 
-#### Load a Password
+#### Get a Password
 ```bash
-# Load by resource name
-passwault load -n <resource-name>
+# Get by resource name
+passwault get -n <resource-name>
 
-# Load all passwords for a username
-passwault load -u <username>
+# Get all passwords for a username
+passwault get -u <username>
 
-# Load all passwords
-passwault load -a
+# Get all passwords
+passwault get -a
 
 # Examples
-passwault load -n github
-passwault load -u john
-passwault load -a
+passwault get -n github
+passwault get -u john
+passwault get -a
 ```
 
 #### Update a Password
@@ -263,24 +269,24 @@ passwault/
 ├── core/
 │   ├── commands/           # CLI command implementations
 │   │   ├── authenticator.py    # Register, login, logout, change password
-│   │   └── password.py          # Save, load, update, delete, generate
+│   │   └── password.py         # Add, get, update, delete, generate
 │   ├── database/           # Data layer
 │   │   ├── models.py           # SQLAlchemy models (User, PasswordManager)
 │   │   ├── user_repository.py  # User CRUD operations
-│   │   ├── password_manager.py # Password CRUD operations
-│   │   └── migrations.py       # Database migration utilities
+│   │   └── password_manager.py # Password CRUD operations
 │   ├── services/           # Business logic
 │   │   └── crypto_service.py   # Cryptography operations
 │   ├── utils/              # Utilities
 │   │   ├── decorators.py       # @require_auth decorator
 │   │   ├── session_manager.py  # Session handling
+│   │   ├── local_types.py      # Custom exception classes
 │   │   └── logger.py           # Logging utilities
 │   └── cli.py              # Argument parser
 ├── imagepass/              # Steganography module
 │   ├── embedder.py             # LSB encoding/decoding
 │   └── utils/
 │       └── image_handler.py    # Image manipulation
-└── tests/                  # Comprehensive test suite (247 tests)
+└── tests/                  # Comprehensive test suite
 ```
 
 ## 🧪 Testing
@@ -336,7 +342,7 @@ uv run pytest tests/ -v
 
 - **Repository Pattern**: Clean separation between data access and business logic
 - **Decorator Pattern**: `@require_auth` for authentication enforcement
-- **Result Type**: `Result[T]` for error handling without exceptions
+- **Custom Exceptions**: Typed exception hierarchy for clear error handling
 - **Dependency Injection**: Session managers and services passed explicitly
 
 ## 🔮 Future Enhancements
