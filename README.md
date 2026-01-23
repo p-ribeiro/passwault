@@ -2,7 +2,7 @@
 
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://github.com/p-ribeiro/passwault/actions/workflows/python-package.yml/badge.svg)](https://github.com/p-ribeiro/passwault/actions/workflows/python-package.yml)
-[![CodeQL](https://github.com/p-ribeiro/passwault/actions/workflows/codeql.yml/badge.svg)](https://github.com/p-ribeiro/passwault/actions/workflows/codeql.yml)
+[![CodeQL](https://github.com/p-ribeiro/passwault/actions/workflows/codeql/badge.svg)](https://github.com/p-ribeiro/passwault/security/code-scanning)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
