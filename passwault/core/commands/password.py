@@ -298,7 +298,8 @@ def generate_password(
             Logger.error("Error generating password")
             return
 
-    Logger.info(f"Generated password: {password}")
+    # Intentional: Password manager CLI must display generated passwords to user
+    Logger.info(f"Generated password: {password}")  # lgtm[py/clear-text-logging-sensitive-data]
 
 
 def _display_password_entry(entry: dict) -> None:
@@ -311,7 +312,8 @@ def _display_password_entry(entry: dict) -> None:
     print(f"Resource: {entry['resource_name']}")
     if entry.get("username"):
         print(f"Username: {entry['username']}")
-    print(f"Password: {entry['password']}")
+    # Intentional: Password manager CLI must display stored passwords to user
+    print(f"Password: {entry['password']}")  # lgtm[py/clear-text-logging-sensitive-data]
     if entry.get("website"):
         print(f"Website: {entry['website']}")
     if entry.get("description"):
