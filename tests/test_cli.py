@@ -182,10 +182,10 @@ class TestPasswordGenerationCommands:
 class TestPasswordManagementCommands:
     """Test suite for password management CLI commands."""
 
-    @patch("passwault.core.cli.save_password")
-    def test_save_password_minimal(self, mock_save, session_manager):
-        """Test save command with minimal required arguments."""
-        test_args = ["save", "-n", "github", "-p", "secret123"]
+    @patch("passwault.core.cli.add_password")
+    def test_add_password_minimal(self, mock_save, session_manager):
+        """Test add command with minimal required arguments."""
+        test_args = ["add", "-n", "github", "-p", "secret123"]
         cli(test_args, session_manager)
 
         mock_save.assert_called_once_with(
@@ -198,11 +198,11 @@ class TestPasswordManagementCommands:
             session_manager=session_manager,
         )
 
-    @patch("passwault.core.cli.save_password")
-    def test_save_password_all_fields(self, mock_save, session_manager):
-        """Test save command with all optional fields."""
+    @patch("passwault.core.cli.add_password")
+    def test_add_password_all_fields(self, mock_save, session_manager):
+        """Test add command with all optional fields."""
         test_args = [
-            "save",
+            "add",
             "-n",
             "github",
             "-p",
@@ -228,9 +228,9 @@ class TestPasswordManagementCommands:
             session_manager=session_manager,
         )
 
-    def test_save_password_missing_resource_name(self, session_manager):
-        """Test save command fails without resource name."""
-        test_args = ["save", "-p", "secret123"]
+    def test_add_password_missing_resource_name(self, session_manager):
+        """Test add command fails without resource name."""
+        test_args = ["add", "-p", "secret123"]
 
         with patch("sys.stderr", io.StringIO()):
             with pytest.raises(SystemExit) as exc_info:
@@ -248,10 +248,10 @@ class TestPasswordManagementCommands:
 
             assert exc_info.value.code == 2
 
-    @patch("passwault.core.cli.load_password")
-    def test_load_password_by_resource_name(self, mock_load, session_manager):
-        """Test load command by resource name."""
-        test_args = ["load", "-n", "github"]
+    @patch("passwault.core.cli.get_password")
+    def test_get_password_by_resource_name(self, mock_load, session_manager):
+        """Test get command by resource name."""
+        test_args = ["get", "-n", "github"]
         cli(test_args, session_manager)
 
         mock_load.assert_called_once_with(
@@ -261,10 +261,10 @@ class TestPasswordManagementCommands:
             session_manager=session_manager,
         )
 
-    @patch("passwault.core.cli.load_password")
-    def test_load_password_by_username(self, mock_load, session_manager):
-        """Test load command by username."""
-        test_args = ["load", "-u", "johndoe"]
+    @patch("passwault.core.cli.get_password")
+    def test_get_password_by_username(self, mock_load, session_manager):
+        """Test get command by username."""
+        test_args = ["get", "-u", "johndoe"]
         cli(test_args, session_manager)
 
         mock_load.assert_called_once_with(
@@ -274,10 +274,10 @@ class TestPasswordManagementCommands:
             session_manager=session_manager,
         )
 
-    @patch("passwault.core.cli.load_password")
-    def test_load_all_passwords(self, mock_load, session_manager):
-        """Test load command for all passwords."""
-        test_args = ["load", "-a"]
+    @patch("passwault.core.cli.get_password")
+    def test_get_all_passwords(self, mock_load, session_manager):
+        """Test get command for all passwords."""
+        test_args = ["get", "-a"]
         cli(test_args, session_manager)
 
         mock_load.assert_called_once_with(

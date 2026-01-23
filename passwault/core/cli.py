@@ -16,8 +16,8 @@ from passwault.core.commands.authenticator import (
 from passwault.core.commands.password import (
     delete_password,
     generate_password,
-    load_password,
-    save_password,
+    get_password,
+    add_password,
     update_password,
 )
 from passwault.core.utils.file_handler import valid_image_file
@@ -178,36 +178,36 @@ def cli(args=None, session_manager=None):
         # ====================================
         # PASSWORD MANAGEMENT
         # ====================================
-        save_parser = subparsers.add_parser(
-            "save", help="Save a password (requires authentication)"
+        add_password_parser = subparsers.add_parser(
+            "add", help="Add a password (requires authentication)"
         )
-        save_parser.add_argument(
+        add_password_parser.add_argument(
             "-n",
             "--resource-name",
             type=str,
             required=True,
             help="Resource name/identifier (e.g., 'github')",
         )
-        save_parser.add_argument(
+        add_password_parser.add_argument(
             "-p", "--password", type=str, required=True, help="Password to save"
         )
-        save_parser.add_argument(
+        add_password_parser.add_argument(
             "-u",
             "--username",
             type=str,
             help="Username associated with this password",
         )
-        save_parser.add_argument(
+        add_password_parser.add_argument(
             "-w", "--website", type=str, help="Website URL (optional)"
         )
-        save_parser.add_argument(
+        add_password_parser.add_argument(
             "-d", "--description", type=str, help="Description (optional)"
         )
-        save_parser.add_argument(
+        add_password_parser.add_argument(
             "-t", "--tags", type=str, help="Comma-separated tags (optional)"
         )
-        save_parser.set_defaults(
-            func=lambda args: save_password(
+        add_password_parser.set_defaults(
+            func=lambda args: add_password(
                 resource_name=args.resource_name,
                 password=args.password,
                 username=args.username,
@@ -218,21 +218,21 @@ def cli(args=None, session_manager=None):
             )
         )
 
-        # Load password subcommand
-        load_parser = subparsers.add_parser(
-            "load", help="Load password(s) (requires authentication)"
+        # get password subcommand
+        get_password_parser = subparsers.add_parser(
+            "get", help="Get password(s) (requires authentication)"
         )
-        load_parser.add_argument(
+        get_password_parser.add_argument(
             "-n", "--resource-name", type=str, help="Resource name to load"
         )
-        load_parser.add_argument(
+        get_password_parser.add_argument(
             "-u", "--username", type=str, help="Load all passwords for this username"
         )
-        load_parser.add_argument(
+        get_password_parser.add_argument(
             "-a", "--all", action="store_true", help="Load all passwords"
         )
-        load_parser.set_defaults(
-            func=lambda args: load_password(
+        get_password_parser.set_defaults(
+            func=lambda args: get_password(
                 resource_name=args.resource_name,
                 username=args.username,
                 all_passwords=args.all,
@@ -241,32 +241,32 @@ def cli(args=None, session_manager=None):
         )
 
         # Update password subcommand
-        update_parser = subparsers.add_parser(
+        update_password_parser = subparsers.add_parser(
             "update", help="Update an existing password (requires authentication)"
         )
-        update_parser.add_argument(
+        update_password_parser.add_argument(
             "-n",
             "--resource-name",
             type=str,
             required=True,
             help="Resource name to update",
         )
-        update_parser.add_argument(
+        update_password_parser.add_argument(
             "-p", "--password", type=str, required=True, help="New password"
         )
-        update_parser.add_argument(
+        update_password_parser.add_argument(
             "-u", "--username", type=str, help="Update username (optional)"
         )
-        update_parser.add_argument(
+        update_password_parser.add_argument(
             "-w", "--website", type=str, help="Update website (optional)"
         )
-        update_parser.add_argument(
+        update_password_parser.add_argument(
             "-d", "--description", type=str, help="Update description (optional)"
         )
-        update_parser.add_argument(
+        update_password_parser.add_argument(
             "-t", "--tags", type=str, help="Update tags (optional)"
         )
-        update_parser.set_defaults(
+        update_password_parser.set_defaults(
             func=lambda args: update_password(
                 resource_name=args.resource_name,
                 new_password=args.password,
@@ -279,17 +279,17 @@ def cli(args=None, session_manager=None):
         )
 
         # Delete password subcommand
-        delete_parser = subparsers.add_parser(
+        delete_password_parser = subparsers.add_parser(
             "delete", help="Delete a password (requires authentication)"
         )
-        delete_parser.add_argument(
+        delete_password_parser.add_argument(
             "-n",
             "--resource-name",
             type=str,
             required=True,
             help="Resource name to delete",
         )
-        delete_parser.set_defaults(
+        delete_password_parser.set_defaults(
             func=lambda args: delete_password(
                 resource_name=args.resource_name, session_manager=session_manager
             )

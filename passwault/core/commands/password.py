@@ -16,7 +16,7 @@ from passwault.core.utils.session_manager import SessionManager
 
 
 @require_auth
-def save_password(
+def add_password(
     resource_name: str,
     password: str,
     session_manager: SessionManager,
@@ -73,7 +73,7 @@ def save_password(
 
 
 @require_auth
-def load_password(
+def get_password(
     session_manager: SessionManager,
     resource_name: Optional[str] = None,
     username: Optional[str] = None,
@@ -254,6 +254,7 @@ def generate_password(
     """
     MAX_ITER = 10
     SYMBOLS_RANGE = [33, 38]
+    excluded_symbol = 34 # I want to remove the symbol `"`
     DIGITS_RANGE = [48, 57]
     UPPERCASE_RANGE = [65, 90]
     LOWERCASE_RANGE = [97, 122]
@@ -277,7 +278,8 @@ def generate_password(
         pool = [i for i in range(LOWERCASE_RANGE[0], LOWERCASE_RANGE[1] + 1)]
 
         if has_symbols:
-            pool.extend([i for i in range(SYMBOLS_RANGE[0], SYMBOLS_RANGE[1] + 1)])
+            pool.extend([i for i in range(SYMBOLS_RANGE[0], SYMBOLS_RANGE[1] + 1)
+                         if i != excluded_symbol])
 
         if has_digits:
             pool.extend([i for i in range(DIGITS_RANGE[0], DIGITS_RANGE[1] + 1)])
