@@ -15,6 +15,11 @@ dependencies = [
     "sqlalchemy>=2.0.44",
 ]
 
+[project.optional-dependencies]
+postgres = [
+    "psycopg2-binary>=2.9.9",
+]
+
 [project.scripts]
 passwault = "passwault.__main__:main"
 

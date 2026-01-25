@@ -7,6 +7,9 @@ image steganography.
 
 import argparse
 
+from datetime import datetime
+from pathlib import Path
+
 from passwault.core.commands.authenticator import (
     change_master_password,
     login,
@@ -20,6 +23,7 @@ from passwault.core.commands.password import (
     add_password,
     update_password,
 )
+from passwault.core.services.backup_service import BackupService
 from passwault.core.utils.file_handler import valid_image_file
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager
@@ -41,6 +45,75 @@ def handle_imagepass(args, session_manager):
         return embedder.encode(message=args.password, session_manager=session_manager)
     else:
         return embedder.decode(session_manager=session_manager)
+
+
+def handle_backup_create(args):
+    """Handle backup create command."""
+    output_dir = Path(args.output_dir) if args.output_dir else None
+    service = BackupService(backup_dir=output_dir)
+
+    try:
+        backup_path = service.create_backup(compress=not args.no_compress)
+        Logger.info(f"Backup created: {backup_path}")
+    except Exception as e:
+        Logger.error(f"Backup failed: {e}")
+
+
+def handle_backup_list(args):
+    """Handle backup list command."""
+    service = BackupService()
+    backups = service.list_backups()
+
+    if not backups:
+        Logger.info("No backups found")
+        return
+
+    Logger.info(f"Found {len(backups)} backup(s):\n")
+    for backup in backups:
+        size_mb = backup.stat().st_size / (1024 * 1024)
+        mtime = datetime.fromtimestamp(backup.stat().st_mtime)
+        print(f"  {backup.name:40} {size_mb:8.2f} MB  {mtime:%Y-%m-%d %H:%M:%S}")
+
+
+def handle_backup_restore(args):
+    """Handle backup restore command."""
+    service = BackupService()
+
+    # Check if it's a full path or just filename
+    backup_path = Path(args.backup_file)
+    if not backup_path.is_absolute():
+        backup_path = service.backup_dir / args.backup_file
+
+    if not backup_path.exists():
+        Logger.error(f"Backup file not found: {backup_path}")
+        return
+
+    # Confirmation prompt
+    if not args.yes:
+        response = input(
+            f"This will restore the database from {backup_path.name}. "
+            "Current data will be backed up. Continue? [y/N]: "
+        )
+        if response.lower() != "y":
+            Logger.info("Restore cancelled")
+            return
+
+    try:
+        service.restore_backup(backup_path)
+        Logger.info("Database restored successfully")
+    except Exception as e:
+        Logger.error(f"Restore failed: {e}")
+
+
+def handle_backup_cleanup(args):
+    """Handle backup cleanup command."""
+    service = BackupService()
+
+    try:
+        removed = service.cleanup_old_backups(args.retention_days)
+        Logger.info(f"Removed {removed} old backup(s)")
+    except Exception as e:
+        Logger.error(f"Cleanup failed: {e}")
 
 
 def cli(args=None, session_manager=None):
@@ -318,6 +391,68 @@ def cli(args=None, session_manager=None):
         imagepass_parser.set_defaults(
             func=lambda args: handle_imagepass(args, session_manager)
         )
+
+        # ====================================
+        # BACKUP COMMANDS
+        # ====================================
+        backup_parser = subparsers.add_parser(
+            "backup", help="Database backup operations"
+        )
+        backup_subparsers = backup_parser.add_subparsers(
+            dest="backup_command", help="Backup operations"
+        )
+
+        # Create backup subcommand
+        create_backup_parser = backup_subparsers.add_parser(
+            "create", help="Create a database backup"
+        )
+        create_backup_parser.add_argument(
+            "--no-compress",
+            action="store_true",
+            help="Don't compress the backup file",
+        )
+        create_backup_parser.add_argument(
+            "-o",
+            "--output-dir",
+            type=str,
+            help="Custom output directory for backup",
+        )
+        create_backup_parser.set_defaults(func=lambda args: handle_backup_create(args))
+
+        # List backups subcommand
+        list_backup_parser = backup_subparsers.add_parser(
+            "list", help="List available backups"
+        )
+        list_backup_parser.set_defaults(func=lambda args: handle_backup_list(args))
+
+        # Restore backup subcommand
+        restore_backup_parser = backup_subparsers.add_parser(
+            "restore", help="Restore database from backup"
+        )
+        restore_backup_parser.add_argument(
+            "backup_file",
+            type=str,
+            help="Path to backup file or backup filename",
+        )
+        restore_backup_parser.add_argument(
+            "-y",
+            "--yes",
+            action="store_true",
+            help="Skip confirmation prompt",
+        )
+        restore_backup_parser.set_defaults(func=lambda args: handle_backup_restore(args))
+
+        # Cleanup old backups subcommand
+        cleanup_backup_parser = backup_subparsers.add_parser(
+            "cleanup", help="Remove old backups"
+        )
+        cleanup_backup_parser.add_argument(
+            "--retention-days",
+            type=int,
+            default=30,
+            help="Keep backups from last N days (default: 30)",
+        )
+        cleanup_backup_parser.set_defaults(func=lambda args: handle_backup_cleanup(args))
 
         # Parse arguments
         parsed_args = parser.parse_args(args)
