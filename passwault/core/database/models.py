@@ -10,6 +10,7 @@ from sqlalchemy import (
     Index,
     UniqueConstraint,
     create_engine,
+    event,
 )
 from sqlalchemy.orm import (
     relationship,
@@ -18,9 +19,10 @@ from sqlalchemy.orm import (
     Mapped,
     mapped_column,
 )
+from sqlalchemy.pool import QueuePool, NullPool
 from sqlalchemy.sql import func
 
-from passwault.core.utils.data_dir import get_data_dir
+from passwault.core.config import Config, DatabaseType
 
 Base = declarative_base()
 
@@ -115,7 +117,68 @@ class PasswordManager(Base):
         )
 
 
-# Database Setup
-DB_PATH = get_data_dir() / "passwault.db"
-engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
-SessionLocal = sessionmaker(bind=engine)
+def _get_engine_options(database_type: DatabaseType) -> dict:
+    """Get engine options based on database type.
+
+    Args:
+        database_type: The target database type
+
+    Returns:
+        Dictionary of engine options
+    """
+    if database_type == DatabaseType.SQLITE:
+        return {
+            "echo": False,
+            "poolclass": NullPool,  # SQLite doesn't support connection pooling well
+        }
+    else:  # PostgreSQL
+        return {
+            "echo": False,
+            "poolclass": QueuePool,
+            "pool_size": 5,
+            "max_overflow": 10,
+            "pool_pre_ping": True,  # Verify connections are alive
+        }
+
+
+def create_db_engine():
+    """Create database engine based on configuration.
+
+    Returns:
+        SQLAlchemy Engine instance
+    """
+    database_url = Config.get_database_url()
+    database_type = Config.get_database_type()
+    options = _get_engine_options(database_type)
+
+    db_engine = create_engine(database_url, **options)
+
+    # SQLite-specific: Enable foreign key constraints
+    if database_type == DatabaseType.SQLITE:
+
+        @event.listens_for(db_engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+    return db_engine
+
+
+def get_session_factory(db_engine=None):
+    """Get session factory for the given engine.
+
+    Args:
+        db_engine: SQLAlchemy engine (creates new if None)
+
+    Returns:
+        sessionmaker instance
+    """
+    if db_engine is None:
+        db_engine = create_db_engine()
+    return sessionmaker(bind=db_engine)
+
+
+# Module-level instances for backward compatibility
+engine = create_db_engine()
+SessionLocal = get_session_factory(engine)

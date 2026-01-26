@@ -79,6 +79,51 @@ Passwault is a command-line password manager that prioritizes security and priva
    uv run passwault get -n github
    ```
 
+## 🗄️ Database Configuration
+
+By default, Passwault uses SQLite and stores data in `~/.passwault/`. For advanced users, PostgreSQL is also supported.
+
+### Configuration Priority
+
+Passwault loads database configuration in this order:
+
+1. **Environment variable** (highest priority): `DATABASE_URL`
+2. **Config file**: `~/.config/passwault/.env`
+3. **Default**: SQLite at `~/.passwault/passwault.db`
+
+### Using PostgreSQL
+
+#### Option 1: Environment Variable
+
+```bash
+export DATABASE_URL="postgresql://user:password@localhost:5432/passwault"
+passwault auth login -u yourname
+```
+
+#### Option 2: Config File
+
+Create a config file at `~/.config/passwault/.env`:
+
+```bash
+mkdir -p ~/.config/passwault
+echo 'DATABASE_URL="postgresql://user:password@localhost:5432/passwault"' > ~/.config/passwault/.env
+```
+
+This is the recommended approach when installing passwault as a uv tool:
+
+```bash
+uv tool install passwault
+passwault auth login -u yourname  # Uses config from ~/.config/passwault/.env
+```
+
+### Default SQLite (No Configuration Needed)
+
+If no `DATABASE_URL` is set, Passwault automatically uses SQLite:
+
+```bash
+passwault auth register -u yourname  # Data stored in ~/.passwault/passwault.db
+```
+
 ## 📚 Complete Command Reference
 
 ### Authentication Commands
