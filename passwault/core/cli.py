@@ -18,6 +18,7 @@ from passwault.core.commands.authenticator import (
 )
 from passwault.core.commands.password import (
     delete_password,
+    generate_and_save,
     generate_password,
     get_password,
     add_password,
@@ -114,6 +115,33 @@ def handle_backup_cleanup(args):
         Logger.info(f"Removed {removed} old backup(s)")
     except Exception as e:
         Logger.error(f"Cleanup failed: {e}")
+
+
+def handle_generate(args, session_manager):
+    """Handle generate command with optional --save flag.
+
+    Routes to either simple generate_password() or interactive
+    generate_and_save() based on --save flag.
+
+    Args:
+        args: Parsed command line arguments
+        session_manager: Session manager instance
+    """
+    if args.save:
+        return generate_and_save(
+            session_manager=session_manager,
+            password_length=args.length,
+            has_symbols=not args.no_symbols,
+            has_digits=not args.no_digits,
+            has_uppercase=not args.no_uppercase,
+        )
+    else:
+        return generate_password(
+            password_length=args.length,
+            has_symbols=not args.no_symbols,
+            has_digits=not args.no_digits,
+            has_uppercase=not args.no_uppercase,
+        )
 
 
 def cli(args=None, session_manager=None):
@@ -239,13 +267,13 @@ def cli(args=None, session_manager=None):
             action="store_true",
             help="Exclude uppercase letters from password",
         )
+        generate_parser.add_argument(
+            "--save",
+            action="store_true",
+            help="Interactive mode: regenerate until satisfied, then save to database (requires login)",
+        )
         generate_parser.set_defaults(
-            func=lambda args: generate_password(
-                password_length=args.length,
-                has_symbols=not args.no_symbols,
-                has_digits=not args.no_digits,
-                has_uppercase=not args.no_uppercase,
-            )
+            func=lambda args: handle_generate(args, session_manager)
         )
 
         # ====================================

@@ -233,17 +233,17 @@ def delete_password(
 
 
 def generate_password(
-    password_length: int = 16,
+    password_length: int = 15,
     has_symbols: bool = True,
     has_digits: bool = True,
     has_uppercase: bool = True,
-) -> None:
+) -> Optional[str]:
     """Generate a random secure password.
 
     Does not require authentication. Generates password based on specified criteria.
 
     Args:
-        password_length: Length of password to generate (default: 16)
+        password_length: Length of password to generate (default: 15)
         has_symbols: Include symbols (default: True)
         has_digits: Include digits (default: True)
         has_uppercase: Include uppercase letters (default: True)
@@ -254,7 +254,7 @@ def generate_password(
     """
     MAX_ITER = 10
     SYMBOLS_RANGE = [33, 38]
-    excluded_symbol = 34 # I want to remove the symbol `"`
+    excluded_symbol = 34  # removing the symbol " (double_quotes) from the symbols pool
     DIGITS_RANGE = [48, 57]
     UPPERCASE_RANGE = [65, 90]
     LOWERCASE_RANGE = [97, 122]
@@ -299,7 +299,117 @@ def generate_password(
             return
 
     # Intentional: Password manager CLI must display generated passwords to user
-    Logger.info(f"Generated password: {password}")  # lgtm[py/clear-text-logging-sensitive-data]
+    Logger.info(f"Generated password: {password}")
+
+    return password
+
+
+def _prompt_save_details() -> Optional[dict]:
+    """Prompt user for password entry details."""
+    print("\n--- Save Password ---")
+
+    # Loop until valid resource name or user cancels
+    while True:
+        resource_name = input("Resource name (required, or 'c' to cancel): ").strip()
+        if resource_name.lower() == 'c':
+            return None
+        if resource_name:
+            break
+        Logger.error("Resource name cannot be empty")
+
+    username = input("Username (optional): ").strip() or None
+    website = input("Website (optional): ").strip() or None
+    description = input("Description (optional): ").strip() or None
+    tags = input("Tags (optional, comma-separated): ").strip() or None
+
+    return {
+        "resource_name": resource_name,
+        "username": username,
+        "website": website,
+        "description": description,
+        "tags": tags
+    }
+
+
+@require_auth
+def generate_and_save(
+    session_manager: SessionManager,
+    password_length: int = 15,
+    has_symbols: bool = True,
+    has_digits: bool = True,
+    has_uppercase: bool = True,
+) -> None:
+    """Interactive password generation with save option
+
+    Generates a password and enters an interactive loop where user can:
+    - Press 'r' to regenerate
+    - Press 's' to save to database
+    - Press 'q' to quit without saving
+
+    Requires authentication since it saves to database.
+    """
+
+    from passwault.core.utils.clipboard import try_copy_to_clipboard
+
+    while True:
+        password = generate_password(password_length, has_symbols, has_digits, has_uppercase)
+
+        if password is None:
+            Logger.error("Failed to generate password.")
+            return
+
+        print("\nOptions:")
+        print("\t[r] Regenerate new password")
+        print("\t[s] Save to database")
+        print("\t[q] Quit without saving")
+
+        while True:
+            user_choice = input("\nYour choice: ").strip().lower()
+            if user_choice in ["r", "s", "q"]:
+                break
+            Logger.error("Invalid choice. Please enter 'r', 's' or 'q'")
+
+        if user_choice == "r":
+            print()
+            continue
+
+        if user_choice == "q":
+            Logger.info("Exiting without saving.")
+            return
+
+        # user_choice == "s" - save the password
+        details = _prompt_save_details()
+        if details is None:
+            continue  # User cancelled, show menu again
+
+        # Get session info
+        user_id = session_manager.get_user_id()
+        encryption_key = session_manager.get_encryption_key()
+        assert user_id is not None
+        assert encryption_key is not None
+
+        repo = PasswordRepository()
+
+        try:
+            repo.save_password(
+                user_id=user_id,
+                encryption_key=encryption_key,
+                resource_name=details["resource_name"],
+                password=password,
+                username=details["username"],
+                website=details["website"],
+                description=details["description"],
+                tags=details["tags"],
+            )
+            Logger.info(f"Password for '{details['resource_name']}' saved successfully!")
+
+            # Copy to clipboard
+            try_copy_to_clipboard(password)
+
+            return
+        except PasswaultError as e:
+            Logger.error(f"Error saving password: {str(e)}")
+            continue
 
 
 def _display_password_entry(entry: dict) -> None:

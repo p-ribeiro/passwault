@@ -32,3 +32,8 @@ class ResourceNotFoundError(PasswaultError):
 class ResourceExistsError(PasswaultError):
     """Raised when trying to create a resource that already exists."""
     pass
+
+
+class ClipboardError(PasswaultError):
+    """Raised when clipboard operations fail."""
+    pass
