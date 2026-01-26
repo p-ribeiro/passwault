@@ -299,7 +299,7 @@ def generate_password(
             return
 
     # Intentional: Password manager CLI must display generated passwords to user
-    Logger.info(f"Generated password: {password}")
+    print(f"\nGenerated password: \033[32m{password}\033[0m")
 
     return password
 

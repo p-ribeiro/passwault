@@ -98,8 +98,8 @@ def try_copy_to_clipboard(text: str) -> bool:
             Logger.info("Password copied to clipboard")
             return True
         else:
-            Logger.warning("No clipboard tool available - password not copied")
+            Logger.warn("No clipboard tool available - password not copied")
             return False
     except ClipboardError as e:
-        Logger.warning(f"Could not copy to clipboard: {e}")
+        Logger.warn(f"Could not copy to clipboard: {e}")
         return False

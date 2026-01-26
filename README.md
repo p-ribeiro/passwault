@@ -55,6 +55,19 @@ Passwault is a command-line password manager that prioritizes security and priva
 
    You should see the help menu with all available commands.
 
+4. **Optional: Install clipboard tool** (for auto-copy feature):
+   ```bash
+   # Linux (X11)
+   sudo apt install xclip
+   # or
+   sudo apt install xsel
+
+   # macOS - pbcopy is pre-installed
+
+   # WSL2 - clip.exe works if Windows interop is enabled
+   # Otherwise install xclip/xsel as above
+   ```
+
 ### First-Time Setup
 
 1. **Register a new account**:
