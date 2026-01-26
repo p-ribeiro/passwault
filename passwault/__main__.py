@@ -4,9 +4,14 @@ This module initializes the database and launches the CLI interface.
 Handles automatic migration from old plain-text schema to encrypted schema.
 """
 
-from passwault.core.cli import cli
-from passwault.core.database.models import Base, engine
-from passwault.core.utils.session_manager import SessionManager
+from dotenv import load_dotenv
+
+# Load .env BEFORE importing models (which creates the database engine at import time)
+load_dotenv()
+
+from passwault.core.cli import cli  # noqa: E402
+from passwault.core.database.models import Base, engine  # noqa: E402
+from passwault.core.utils.session_manager import SessionManager  # noqa: E402
 
 
 def main():

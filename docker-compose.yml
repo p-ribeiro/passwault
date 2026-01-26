@@ -22,6 +22,8 @@ services:
       retries: 5
     networks:
       - passwault-network
+    env_file:
+      - .env
 
   # Backup Service (runs pg_dump on schedule)
   backup:
