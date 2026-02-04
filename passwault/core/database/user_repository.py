@@ -103,9 +103,7 @@ class UserRepository:
         finally:
             session.close()
 
-    def authenticate(
-        self, username: str, master_password: str
-    ) -> Dict[str, Any]:
+    def authenticate(self, username: str, master_password: str) -> Dict[str, Any]:
         """Authenticate a user and derive their encryption key.
 
         Verifies the master password and derives the encryption key
