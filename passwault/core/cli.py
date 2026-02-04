@@ -41,11 +41,16 @@ def handle_imagepass(args, session_manager):
     Returns:
         Result of encode/decode operation
     """
-    embedder = Embedder(args.image_path, session_manager=session_manager)
+    embedder = Embedder(args.image_path)
     if args.option == "encode":
-        return embedder.encode(message=args.password, session_manager=session_manager)
+        result = embedder.encode(message=args.password, session_manager=session_manager)
+        Logger.info(f"Password encoded to: {result}")
     else:
-        return embedder.decode(session_manager=session_manager)
+        message = embedder.decode(session_manager=session_manager)
+        if message:
+            Logger.info(message)
+        else:
+            Logger.error("No hidden password found in the image.")
 
 
 def handle_backup_create(args):

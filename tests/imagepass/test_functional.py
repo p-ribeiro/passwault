@@ -24,14 +24,14 @@ def test_encode_decode(tmp_path, session_manager):
     """
 
     # Initialize the encoder
-    encoder = Embedder(test_image, output_dir, session_manager=session_manager)
+    encoder = Embedder(test_image, output_dir)
 
     encoder.encode(message, session_manager=session_manager)
     result_image = output_dir / "sample_image.png"
     assert result_image.exists(), "Encoded image was not created."
 
     # Initialize the decoder
-    decoder = Embedder(result_image, session_manager=session_manager)
+    decoder = Embedder(result_image)
     decoded_message = decoder.decode(session_manager=session_manager)
     assert decoded_message is not None, "Decoded message is None."
     assert message == decoded_message, "Decoded message does not match the original."
@@ -43,13 +43,13 @@ def test_encode_decode_grayscale(tmp_path, tmp_image_bw, session_manager):
 
     message = "secret password 123!"
 
-    encoder = Embedder(tmp_image_bw, output_dir, session_manager=session_manager)
+    encoder = Embedder(tmp_image_bw, output_dir)
     encoder.encode(message, session_manager=session_manager)
 
     result_image = output_dir / "test_bw.png"
     assert result_image.exists(), "Encoded grayscale image was not created."
 
-    decoder = Embedder(result_image, session_manager=session_manager)
+    decoder = Embedder(result_image)
     decoded_message = decoder.decode(session_manager=session_manager)
     assert decoded_message is not None, "Decoded message is None."
     assert message == decoded_message, "Decoded message does not match the original."
@@ -60,7 +60,7 @@ def test_encode_message_larger_than_capacity(tmp_image_rgb, session_manager):
     large_message = "A" * 10**7  # 10 million characters
 
     # Initialize the encoder
-    encoder = Embedder(tmp_image_rgb, session_manager=session_manager)
+    encoder = Embedder(tmp_image_rgb)
 
     # Expect a ValueError to be raised due to insufficient capacity
     try:
