@@ -32,7 +32,7 @@ def test_get_image_bands_RGBA(tmp_image_rgba):
     assert bands["A"] == 3
 
 
-def test_get_iamge_bands_bw(tmp_image_bw):
+def test_get_image_bands_bw(tmp_image_bw):
     image_handler = ImageHandler(tmp_image_bw)
     bands = image_handler._get_image_bands()
 

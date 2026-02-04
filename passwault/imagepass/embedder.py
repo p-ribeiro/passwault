@@ -1,5 +1,5 @@
 from pathlib import Path
-from random import choice
+from secrets import choice
 import struct
 from typing import List, Optional, Union
 import zlib
@@ -28,7 +28,6 @@ class Embedder:
             else Path(output_dir)
         )
         self.image_handler = ImageHandler(self.image_path, self.output_dir)
-        self.message = None
         self.session_manager = session_manager
         self.session = None
         self.user_id = None
@@ -38,22 +37,19 @@ class Embedder:
             self.user_id = self.session["user_id"] if self.session else None
 
     def _create_bands_bitmask(self) -> int:
-        """Bitmask for R/G/B/A/L channels\n
+        """Bitmask for R/G/B/A/L channels
         (b0=R, b1=G, b2=B, b3=A, b4=L)
         """
         r = "R" in self.image_handler.bands
         g = "G" in self.image_handler.bands
         b = "B" in self.image_handler.bands
         a = "A" in self.image_handler.bands
-        l = "L" in self.image_handler.bands
-
+        l = "L" in self.image_handler.bands  # noqa: E741
+        
         bands_bitmask = (r << 0) | (g << 1) | (b << 2) | (a << 3) | (l << 4)
         return bands_bitmask
 
     def _unpack_header(self, header: bytes) -> Header:
-        marker, band_mask, msg_len, algo, key = struct.unpack(
-            ">IBIB10s", header[: config.HEADER_LEN - 4]
-        )
 
         header_crc_stored = header[config.HEADER_LEN - 4 : config.HEADER_LEN]
 
@@ -63,17 +59,15 @@ class Embedder:
         if header_crc_calc != header_crc_stored:
             raise ValueError("Header CRC mismatch!")
 
-        return Header(
-            marker=marker,
-            band_mask=band_mask,
-            message_len=msg_len,
-            algo_id=algo,
-            key=key,
-        )
+        header_struct = Header(*struct.unpack(
+            ">IBIB10s", header_without_crc
+        ))
+
+        return header_struct
 
     def _create_header(self, key: str, msg_len: int) -> bytes:
 
-        header: Header = Header(
+        header_struct: Header = Header(
             marker=config.MARKER,
             band_mask=self._create_bands_bitmask(),
             message_len=msg_len,
@@ -81,14 +75,14 @@ class Embedder:
             key=key.encode(),
         )
 
-        # packing the header dataclass into 20 bytes
+        # packing the header dataclass into 20 bytes (pre-CRC)
         header_fixed = struct.pack(
             ">IBIB10s",
-            header.marker,
-            header.band_mask,
-            header.message_len,
-            header.algo_id,
-            header.key,
+            header_struct.marker,
+            header_struct.band_mask,
+            header_struct.message_len,
+            header_struct.algo_id,
+            header_struct.key,
         )
 
         # compute the CRC32
@@ -124,26 +118,29 @@ class Embedder:
 
             if len(header_bytes_buffer) == config.HEADER_LEN:
                 return header_bytes_buffer
+        return None
 
     @staticmethod
     def _key_spacing_generator(key: str):
         cnt = 0
         key_size = len(key)
         while True:
-            yield ord(key[cnt % key_size])
+            yield max(1, ord(key[cnt % key_size]))
             cnt += 1
 
     def _insert_message_lsb(
         self, header: bytes, payload: bytes, target_bytes: List[int], key: str
     ) -> None:
-        """In-place embedding of each bit of `source_bytes` into the least significant bit (LSB) of `target_bytes`.
+        """In-place embedding of each bit of header and payload into the LSB of `target_bytes`.
 
         Args:
-            source_bytes (bytes): the bytes to be embedded into the target.
-            target_bytes (List[int]): the bytearray into which the source bytes will be embedded.
+            header (bytes): the header bytes to embed sequentially.
+            payload (bytes): the payload bytes to embed with key spacing.
+            target_bytes (List[int]): the pixel values to embed into.
+            key (str): the key used for spacing between payload bits.
         """
 
-        target_lenght = len(target_bytes)
+        target_length = len(target_bytes)
         bit_idx = 0
 
         # add header first
@@ -151,12 +148,13 @@ class Embedder:
             for bit_pos in range(7, -1, -1):
                 bit = byte >> bit_pos & 1
 
-                if bit_idx < target_lenght:
+                if bit_idx >= target_length:
+                    raise ValueError("Image too small to embed the header")
 
-                    if bit:
-                        target_bytes[bit_idx] |= 1  # set LSB to 1
-                    else:
-                        target_bytes[bit_idx] &= ~1  # clear LSB to 0
+                if bit:
+                    target_bytes[bit_idx] |= 1  # set LSB to 1
+                else:
+                    target_bytes[bit_idx] &= ~1  # clear LSB to 0
 
                 bit_idx += 1
 
@@ -169,11 +167,13 @@ class Embedder:
             for bit_pos in range(7, -1, -1):
                 bit = byte >> bit_pos & 1
 
-                if bit_idx < target_lenght:
-                    if bit:
-                        target_bytes[bit_idx] |= 1  # set LSB to 1
-                    else:
-                        target_bytes[bit_idx] &= ~1  # clear LSB to 0
+                if bit_idx >= target_length:
+                    raise ValueError("Message too large to encode in the image")
+
+                if bit:
+                    target_bytes[bit_idx] |= 1  # set LSB to 1
+                else:
+                    target_bytes[bit_idx] &= ~1  # clear LSB to 0
 
                 bit_idx += next(keyed_spacer)
 
@@ -239,32 +239,26 @@ class Embedder:
         return None
 
     @require_auth
-    def encode(self, message: str, session_manager: SessionManager):
-        self.message = message
-
-        if len(message) > self.image_handler.size * len(self.image_handler.bands):
+    def encode(self, message: str, session_manager: SessionManager) -> str:
+        total_capacity = self.image_handler.size * len(self.image_handler.bands)
+        if len(message) > total_capacity:
             raise ValueError("Message is too large to encode in the image.")
 
-        band_values = {}
-        if len(self.message) < self.image_handler.size:
-            # only one band is necessary (default for passwords)
-            # but the band is chosen at random
+        # the key is always 10 chars long
+        key = key_generator()
+
+        if len(message) < self.image_handler.size:
+            # single-band embedding
             band = choice(list(self.image_handler.bands.keys()))
-            band_values[band] = self.image_handler.get_band_values(band)
+            band_values = self.image_handler.get_band_values(band)
 
-            # the key is always 10 chars long
-            key = key_generator()
+            header = self._create_header(key, len(message))
+            msg_crc = zlib.crc32(message.encode()).to_bytes(4, "big")
+            payload = message.encode() + msg_crc
+            self._insert_message_lsb(header, payload, band_values, key)
 
-            header = self._create_header(key, len(self.message))
-            msg_crc = zlib.crc32(self.message.encode()).to_bytes(4, "big")
-            payload = self.message.encode() + msg_crc
-            self._insert_message_lsb(header, payload, band_values[band], key)
-
-            result_image = self.image_handler.replace_band(band, band_values[band])
-
-            if result_image:
-                self.image_handler.save_image_to_file(result_image)
+            result_image = self.image_handler.replace_band(band, band_values)
+            return self.image_handler.save_image_to_file(result_image)
         else:
-            # WIP
-            print("Message too large to fit in a single band.")
-            pass
+            # TODO: multi-band embedding
+            raise NotImplementedError("Multi-band embedding is not yet supported.")

@@ -61,7 +61,7 @@ def test_unpack_header(tmp_image_rgb, session_manager):
 
 def test_insert_header_lsb(tmp_image_rgb, session_manager):
     embedder = Embedder(tmp_image_rgb, session_manager=session_manager)
-    test_bytes = [255] * 30_000
+    test_bytes = [255] * 60_000
     key = key_generator()
 
     # header has 24 * 8 = 192
@@ -71,4 +71,7 @@ def test_insert_header_lsb(tmp_image_rgb, session_manager):
 
     embedder._insert_message_lsb(header, payload, test_bytes, key)
 
-    assert test_bytes != [255] * 30_000
+    # verify the marker (0xDEADCAFE) was correctly embedded in the first 32 LSBs
+    marker_bits = "".join(str(test_bytes[i] & 1) for i in range(32))
+    marker_value = int(marker_bits, 2)
+    assert marker_value == 0xDEADCAFE
