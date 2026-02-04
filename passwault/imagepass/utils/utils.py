@@ -1,8 +1,8 @@
-from random import choice
+from secrets import choice
 
 
 def key_generator(
-    len: int = 10,
+    length: int = 10,
     has_symbols: bool = True,
     has_digits: bool = True,
     has_uppercase: bool = True,
@@ -24,6 +24,6 @@ def key_generator(
     if has_uppercase:
         pool.extend([i for i in range(UPPERCASE_RANGE[0], UPPERCASE_RANGE[1] + 1)])
 
-    password = "".join([chr(choice(pool)) for _ in range(len)])
+    password = "".join([chr(choice(pool)) for _ in range(length)])
 
     return password
