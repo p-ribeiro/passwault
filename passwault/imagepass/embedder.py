@@ -17,7 +17,6 @@ class Embedder:
         self,
         image_path: Union[Path, str],
         output_dir: Optional[Union[Path, str]] = None,
-        session_manager: Optional[SessionManager] = None,
     ) -> None:
         self.image_path = (
             image_path if isinstance(image_path, Path) else Path(image_path)
@@ -28,13 +27,6 @@ class Embedder:
             else Path(output_dir)
         )
         self.image_handler = ImageHandler(self.image_path, self.output_dir)
-        self.session_manager = session_manager
-        self.session = None
-        self.user_id = None
-
-        if session_manager:
-            self.session = session_manager.get_session()
-            self.user_id = self.session["user_id"] if self.session else None
 
     def _create_bands_bitmask(self) -> int:
         """Bitmask for R/G/B/A/L channels
@@ -223,7 +215,6 @@ class Embedder:
             band_values = self.image_handler.get_band_values(band)
 
             header_bytes = self._get_header_bytes(band_values)
-
             if header_bytes:
                 header = self._unpack_header(header_bytes)
                 message, message_crc = self._retrieve_message_lsb(

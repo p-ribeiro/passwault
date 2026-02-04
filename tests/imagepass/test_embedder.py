@@ -5,7 +5,7 @@ MESSAGE = "This is my message to the world, but it should be hidden"
 
 
 def test_create_bands_byte_rgb(tmp_image_rgb, session_manager):
-    embedder = Embedder(tmp_image_rgb, session_manager=session_manager)
+    embedder = Embedder(tmp_image_rgb)
     bands_bitmask = embedder._create_bands_bitmask()
 
     assert (bands_bitmask >> 0) & 1 == 1
@@ -16,7 +16,7 @@ def test_create_bands_byte_rgb(tmp_image_rgb, session_manager):
 
 
 def test_create_bands_byte_rgba(tmp_image_rgba, session_manager):
-    embedder = Embedder(tmp_image_rgba, session_manager=session_manager)
+    embedder = Embedder(tmp_image_rgba)
     bands_bitmask = embedder._create_bands_bitmask()
 
     assert (bands_bitmask >> 0) & 1 == 1
@@ -27,7 +27,7 @@ def test_create_bands_byte_rgba(tmp_image_rgba, session_manager):
 
 
 def test_create_bands_byte_bw(tmp_image_bw, session_manager):
-    embedder = Embedder(tmp_image_bw, session_manager=session_manager)
+    embedder = Embedder(tmp_image_bw)
     bands_bitmask = embedder._create_bands_bitmask()
 
     assert (bands_bitmask >> 0) & 1 == 0
@@ -40,14 +40,14 @@ def test_create_bands_byte_bw(tmp_image_bw, session_manager):
 def test_header_size(tmp_image_rgb, session_manager):
     # header must be a fixed 24 bytes
 
-    embedder = Embedder(tmp_image_rgb, session_manager=session_manager)
+    embedder = Embedder(tmp_image_rgb)
     key = key_generator()
     header = embedder._create_header(key, len(MESSAGE))
     assert len(header) == 24
 
 
 def test_unpack_header(tmp_image_rgb, session_manager):
-    embedder = Embedder(tmp_image_rgb, session_manager=session_manager)
+    embedder = Embedder(tmp_image_rgb)
 
     key = key_generator()
     header_bytes = embedder._create_header(key, len(MESSAGE))
@@ -60,7 +60,7 @@ def test_unpack_header(tmp_image_rgb, session_manager):
 
 
 def test_insert_header_lsb(tmp_image_rgb, session_manager):
-    embedder = Embedder(tmp_image_rgb, session_manager=session_manager)
+    embedder = Embedder(tmp_image_rgb)
     test_bytes = [255] * 60_000
     key = key_generator()
 
