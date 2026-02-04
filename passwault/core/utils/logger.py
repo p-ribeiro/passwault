@@ -31,3 +31,9 @@ class Logger:
         print(
             f"{Colors.YELLOW.value}[DEBUG] {Logger._current_timestamp()} - {message}{Colors.RESET.value}"
         )
+
+    @staticmethod
+    def warn(message: str) -> None:
+        print(
+            f"{Colors.YELLOW.value}[WARN] {Logger._current_timestamp()} - {message}{Colors.RESET.value}"
+        )

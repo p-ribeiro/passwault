@@ -278,8 +278,13 @@ def generate_password(
         pool = [i for i in range(LOWERCASE_RANGE[0], LOWERCASE_RANGE[1] + 1)]
 
         if has_symbols:
-            pool.extend([i for i in range(SYMBOLS_RANGE[0], SYMBOLS_RANGE[1] + 1)
-                         if i != excluded_symbol])
+            pool.extend(
+                [
+                    i
+                    for i in range(SYMBOLS_RANGE[0], SYMBOLS_RANGE[1] + 1)
+                    if i != excluded_symbol
+                ]
+            )
 
         if has_digits:
             pool.extend([i for i in range(DIGITS_RANGE[0], DIGITS_RANGE[1] + 1)])
@@ -299,7 +304,7 @@ def generate_password(
             return
 
     # Intentional: Password manager CLI must display generated passwords to user
-    Logger.info(f"Generated password: {password}")
+    print(f"\nGenerated password: \033[32m{password}\033[0m")
 
     return password
 
@@ -311,7 +316,7 @@ def _prompt_save_details() -> Optional[dict]:
     # Loop until valid resource name or user cancels
     while True:
         resource_name = input("Resource name (required, or 'c' to cancel): ").strip()
-        if resource_name.lower() == 'c':
+        if resource_name.lower() == "c":
             return None
         if resource_name:
             break
@@ -327,7 +332,7 @@ def _prompt_save_details() -> Optional[dict]:
         "username": username,
         "website": website,
         "description": description,
-        "tags": tags
+        "tags": tags,
     }
 
 
@@ -352,7 +357,9 @@ def generate_and_save(
     from passwault.core.utils.clipboard import try_copy_to_clipboard
 
     while True:
-        password = generate_password(password_length, has_symbols, has_digits, has_uppercase)
+        password = generate_password(
+            password_length, has_symbols, has_digits, has_uppercase
+        )
 
         if password is None:
             Logger.error("Failed to generate password.")
@@ -401,7 +408,9 @@ def generate_and_save(
                 description=details["description"],
                 tags=details["tags"],
             )
-            Logger.info(f"Password for '{details['resource_name']}' saved successfully!")
+            Logger.info(
+                f"Password for '{details['resource_name']}' saved successfully!"
+            )
 
             # Copy to clipboard
             try_copy_to_clipboard(password)
@@ -423,7 +432,9 @@ def _display_password_entry(entry: dict) -> None:
     if entry.get("username"):
         print(f"Username: {entry['username']}")
     # Intentional: Password manager CLI must display stored passwords to user
-    print(f"Password: {entry['password']}")  # lgtm[py/clear-text-logging-sensitive-data]
+    print(
+        f"Password: {entry['password']}"
+    )  # lgtm[py/clear-text-logging-sensitive-data]
     if entry.get("website"):
         print(f"Website: {entry['website']}")
     if entry.get("description"):

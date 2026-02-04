@@ -468,7 +468,9 @@ def cli(args=None, session_manager=None):
             action="store_true",
             help="Skip confirmation prompt",
         )
-        restore_backup_parser.set_defaults(func=lambda args: handle_backup_restore(args))
+        restore_backup_parser.set_defaults(
+            func=lambda args: handle_backup_restore(args)
+        )
 
         # Cleanup old backups subcommand
         cleanup_backup_parser = backup_subparsers.add_parser(
@@ -480,7 +482,9 @@ def cli(args=None, session_manager=None):
             default=30,
             help="Keep backups from last N days (default: 30)",
         )
-        cleanup_backup_parser.set_defaults(func=lambda args: handle_backup_cleanup(args))
+        cleanup_backup_parser.set_defaults(
+            func=lambda args: handle_backup_cleanup(args)
+        )
 
         # Parse arguments
         parsed_args = parser.parse_args(args)
