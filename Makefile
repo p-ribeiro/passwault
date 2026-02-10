@@ -1,6 +1,6 @@
 # Makefile for passwault project
 
-.PHONY: test lint format check clean
+.PHONY: test lint format check clean build-portable
 
 # Run tests wiht pytest
 test:
@@ -17,6 +17,14 @@ format:
 # Check formatting without making changes
 check:
 	uv run black --check passwault tests
+
+# Build portable executable with PyInstaller
+build-portable:
+	uv run pyinstaller passwault.spec --clean
+	cp portable/run.sh dist/passwault/
+	cp portable/run.bat dist/passwault/
+	@echo "\nPortable build ready in dist/passwault/"
+	@echo "Copy the dist/passwault/ folder to your USB drive."
 
 # Remove __pycache__ and .pyc files
 clean:

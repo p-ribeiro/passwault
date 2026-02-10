@@ -5,9 +5,29 @@ Handles automatic migration from old plain-text schema to encrypted schema.
 """
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+
+def setup_portable_mode():
+    """Check for --portable flag and configure portable data directory.
+
+    Must be called before any other imports that use get_data_dir().
+    Removes the --portable flag from sys.argv so argparse doesn't see it.
+    """
+    if "--portable" in sys.argv:
+        sys.argv.remove("--portable")
+
+        from passwault.core.utils.data_dir import get_executable_dir, set_portable_data_dir
+
+        exe_dir = get_executable_dir()
+        set_portable_data_dir(exe_dir)
+
+
+# Handle portable mode FIRST, before any config or model imports
+setup_portable_mode()
 
 
 def load_database_config():

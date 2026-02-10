@@ -66,7 +66,7 @@ class TestConfig:
 
         backup_dir = Config.get_backup_dir()
 
-        expected = Path.home() / ".passwault" / "backups"
+        expected = Path.home() / ".local" / "share" / "passwault" / "backups"
         assert backup_dir == expected
         assert backup_dir.exists()
 

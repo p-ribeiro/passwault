@@ -63,6 +63,8 @@ class Config:
     def get_backup_dir(cls) -> Path:
         """Get backup directory from environment or default.
 
+        In portable mode, backups go into the portable data directory.
+
         Returns:
             Path to backup directory
         """
@@ -71,7 +73,7 @@ class Config:
         if backup_dir:
             path = Path(backup_dir)
         else:
-            path = Path.home() / ".passwault" / "backups"
+            path = get_data_dir() / "backups"
 
         path.mkdir(parents=True, exist_ok=True)
         return path
