@@ -22,6 +22,7 @@ Passwault is a command-line password manager that prioritizes security and priva
 - **🛡️ Authenticated Encryption**: AES-GCM provides both confidentiality and authenticity
 - **🔐 Password Generation**: Cryptographically secure random password generation
 - **📦 Local Storage**: SQLite database - no cloud, no third parties
+- **💾 Portable USB Mode**: Run from a USB drive with PyInstaller — no installation needed
 
 ## 🚀 Quick Start
 
@@ -136,6 +137,46 @@ If no `DATABASE_URL` is set, Passwault automatically uses SQLite:
 ```bash
 passwault auth register -u yourname  # Data stored in ~/.passwault/passwault.db
 ```
+
+## 💾 Portable USB Mode
+
+Passwault can run entirely from a USB drive with no installation required. Data is stored alongside the executable, so your passwords travel with you.
+
+### Building the Portable Executable
+
+```bash
+# Install dev dependencies (includes PyInstaller)
+uv sync --dev
+
+# Build the portable bundle
+make build-portable
+```
+
+This creates a `dist/passwault/` folder containing the executable and launcher scripts. Copy the entire folder to your USB drive.
+
+### Running from USB
+
+Use the included launcher scripts from the USB drive:
+
+```bash
+# Linux / macOS
+./run.sh auth login -u yourname
+
+# Windows
+run.bat auth login -u yourname
+```
+
+The `--portable` flag (added automatically by the launchers) tells Passwault to store all data in a `passwault-data/` directory next to the executable instead of `~/.local/share/passwault/`.
+
+### Migrating Existing Data to USB
+
+If you already have passwords stored in a local or PostgreSQL database, use the `migrate` command to export them to a portable SQLite file:
+
+```bash
+passwault migrate --to-sqlite -o /mnt/usb/passwault/passwault-data/passwault.db
+```
+
+Encrypted passwords and nonces are copied as-is — no login or decryption is needed. The output file must not already exist (safety guard).
 
 ## 📚 Complete Command Reference
 
@@ -265,6 +306,17 @@ passwault imagepass decode results/photo.png
 ```
 
 **Supported Image Formats**: PNG, BMP (lossless formats only - JPEG compression will destroy hidden data)
+
+### Database Migration
+
+Export your database to a portable SQLite file:
+
+```bash
+passwault migrate --to-sqlite -o <output-path>
+
+# Example: export to a USB drive
+passwault migrate --to-sqlite -o /mnt/usb/passwault-data/passwault.db
+```
 
 ## 🔒 Security Architecture
 
