@@ -25,6 +25,7 @@ from passwault.core.commands.password import (
     update_password,
 )
 from passwault.core.services.backup_service import BackupService
+from passwault.core.services.migration_service import MigrationService
 from passwault.core.utils.file_handler import valid_image_file
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager
@@ -120,6 +121,19 @@ def handle_backup_cleanup(args):
         Logger.info(f"Removed {removed} old backup(s)")
     except Exception as e:
         Logger.error(f"Cleanup failed: {e}")
+
+
+def handle_migrate_to_sqlite(args):
+    """Handle migrate --to-sqlite command."""
+    service = MigrationService()
+
+    try:
+        result = service.migrate_to_sqlite(args.output)
+        Logger.info(f"Migration complete: {result}")
+    except FileExistsError as e:
+        Logger.error(str(e))
+    except Exception as e:
+        Logger.error(f"Migration failed: {e}")
 
 
 def handle_generate(args, session_manager):
@@ -489,6 +503,29 @@ def cli(args=None, session_manager=None):
         )
         cleanup_backup_parser.set_defaults(
             func=lambda args: handle_backup_cleanup(args)
+        )
+
+        # ====================================
+        # MIGRATION COMMANDS
+        # ====================================
+        migrate_parser = subparsers.add_parser(
+            "migrate", help="Migrate database to a different format"
+        )
+        migrate_parser.add_argument(
+            "--to-sqlite",
+            action="store_true",
+            required=True,
+            help="Migrate data to a portable SQLite database",
+        )
+        migrate_parser.add_argument(
+            "-o",
+            "--output",
+            type=str,
+            required=True,
+            help="Output path for the SQLite database file",
+        )
+        migrate_parser.set_defaults(
+            func=lambda args: handle_migrate_to_sqlite(args)
         )
 
         # Parse arguments

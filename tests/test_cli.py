@@ -409,6 +409,41 @@ class TestImagepassCommands:
             assert exc_info.value.code == 2
 
 
+class TestMigrateCommands:
+    """Test suite for migrate CLI commands."""
+
+    @patch("passwault.core.cli.handle_migrate_to_sqlite")
+    def test_migrate_to_sqlite(self, mock_migrate, session_manager):
+        """Test migrate --to-sqlite command parses correctly."""
+        test_args = ["migrate", "--to-sqlite", "-o", "/tmp/out.db"]
+        cli(test_args, session_manager)
+
+        mock_migrate.assert_called_once()
+        args = mock_migrate.call_args[0][0]
+        assert args.to_sqlite is True
+        assert args.output == "/tmp/out.db"
+
+    def test_migrate_missing_output(self, session_manager):
+        """Test migrate fails without -o/--output."""
+        test_args = ["migrate", "--to-sqlite"]
+
+        with patch("sys.stderr", io.StringIO()):
+            with pytest.raises(SystemExit) as exc_info:
+                cli(test_args, session_manager)
+
+            assert exc_info.value.code == 2
+
+    def test_migrate_missing_to_sqlite_flag(self, session_manager):
+        """Test migrate fails without --to-sqlite flag."""
+        test_args = ["migrate", "-o", "/tmp/out.db"]
+
+        with patch("sys.stderr", io.StringIO()):
+            with pytest.raises(SystemExit) as exc_info:
+                cli(test_args, session_manager)
+
+            assert exc_info.value.code == 2
+
+
 class TestCLIIntegration:
     """Integration tests for CLI."""
 
