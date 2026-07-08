@@ -1,7 +1,6 @@
 """Passwault CLI entry point.
 
 This module initializes the database and launches the CLI interface.
-Handles automatic migration from old plain-text schema to encrypted schema.
 """
 
 import os
@@ -9,6 +8,10 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+from passwault.core.cli import cli
+from passwault.core.database.models import Base, engine
+from passwault.core.utils.session_manager import SessionManager
 
 
 def setup_portable_mode():
@@ -20,7 +23,10 @@ def setup_portable_mode():
     if "--portable" in sys.argv:
         sys.argv.remove("--portable")
 
-        from passwault.core.utils.data_dir import get_executable_dir, set_portable_data_dir
+        from passwault.core.utils.data_dir import (
+            get_executable_dir,
+            set_portable_data_dir,
+        )
 
         exe_dir = get_executable_dir()
         set_portable_data_dir(exe_dir)
@@ -55,16 +61,9 @@ def load_database_config():
 # Load database config BEFORE importing models (which creates the database engine at import time)
 load_database_config()
 
-from passwault.core.cli import cli  # noqa: E402
-from passwault.core.database.models import Base, engine  # noqa: E402
-from passwault.core.utils.session_manager import SessionManager  # noqa: E402
-
 
 def main():
-    """Main entry point for Passwault CLI.
-
-    Initializes database tables and starts the CLI with session management.
-    """
+    """Main entry point for Passwault CLI."""
     # Create database tables if they don't exist
     Base.metadata.create_all(engine)
 

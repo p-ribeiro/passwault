@@ -1,30 +1,33 @@
 import datetime as dt
 
 from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
     Integer,
+    LargeBinary,
     String,
     Text,
-    ForeignKey,
-    LargeBinary,
-    DateTime,
-    Index,
     UniqueConstraint,
     create_engine,
     event,
 )
 from sqlalchemy.orm import (
-    relationship,
-    declarative_base,
-    sessionmaker,
+    DeclarativeBase,
     Mapped,
     mapped_column,
+    relationship,
+    sessionmaker,
 )
-from sqlalchemy.pool import QueuePool, NullPool
+from sqlalchemy.pool import NullPool, QueuePool
 from sqlalchemy.sql import func
 
 from passwault.core.config import Config, DatabaseType
 
-Base = declarative_base()
+
+# Create the base class
+class Base(DeclarativeBase):
+    pass
 
 
 class User(Base):
