@@ -34,24 +34,17 @@ Passwault is a command-line password manager that prioritizes security and priva
    cd passwault-project
    ```
 
-2. **Install dependencies** with uv (recommended) or poetry:
+2. **Install dependencies** with uv:
    ```bash
-   # Using uv (recommended)
    uv sync
 
    # Install the package in editable mode
    uv pip install -e .
-
-   # Or using poetry
-   poetry install
-   poetry shell
    ```
 
 3. **Verify installation**:
    ```bash
    uv run passwault --help
-   # Or if using poetry shell
-   passwault --help
    ```
 
    You should see the help menu with all available commands.
