@@ -81,7 +81,7 @@ class CryptoService:
         """
         try:
             return bcrypt.checkpw(password.encode("utf-8"), password_hash)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
 
     @staticmethod

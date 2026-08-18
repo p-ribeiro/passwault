@@ -21,9 +21,9 @@ class ImageHandler:
 
     def _get_image_dimensions(self) -> Tuple[int, int]:
         return self._image.size
-    
+
     def _get_image_bands(self) -> dict[str, int]:
-        return {band:idx for idx, band in enumerate(self._image.getbands())}
+        return {band: idx for idx, band in enumerate(self._image.getbands())}
 
     def get_band_values(self, band: str) -> List[int]:
         if band not in self.bands:
@@ -46,7 +46,7 @@ class ImageHandler:
 
         modified_band_image = Image.new("L", (self.width, self.height))
         modified_band_image.putdata(band_values)
-        
+
         match band:
             case "R":
                 modified_image = Image.merge(
@@ -66,12 +66,11 @@ class ImageHandler:
                 )
             case "L":
                 modified_image = modified_band_image
-                
-            case _:                                               
-                raise ValueError(f"Band '{band}' is not supported for merging")                                         
-                    
-        return modified_image
 
+            case _:
+                raise ValueError(f"Band '{band}' is not supported for merging")
+
+        return modified_image
 
     def save_image_to_file(self, image: Image.Image) -> str:
         filename = f"{self.image_name}.{self.image_suffix}"

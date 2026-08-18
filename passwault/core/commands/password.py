@@ -6,7 +6,6 @@ save, load, update, delete, and password generation functionality.
 
 import re
 from random import choice
-from typing import Optional
 
 from passwault.core.database.password_manager import PasswordRepository
 from passwault.core.utils.decorators import require_auth
@@ -20,10 +19,10 @@ def add_password(
     resource_name: str,
     password: str,
     session_manager: SessionManager,
-    username: Optional[str] = None,
-    website: Optional[str] = None,
-    description: Optional[str] = None,
-    tags: Optional[str] = None,
+    username: str | None = None,
+    website: str | None = None,
+    description: str | None = None,
+    tags: str | None = None,
 ) -> None:
     """Save a new encrypted password entry.
 
@@ -75,8 +74,8 @@ def add_password(
 @require_auth
 def get_password(
     session_manager: SessionManager,
-    resource_name: Optional[str] = None,
-    username: Optional[str] = None,
+    resource_name: str | None = None,
+    username: str | None = None,
     all_passwords: bool = False,
 ) -> None:
     """Load and decrypt password(s).
@@ -150,10 +149,10 @@ def update_password(
     resource_name: str,
     new_password: str,
     session_manager: SessionManager,
-    username: Optional[str] = None,
-    website: Optional[str] = None,
-    description: Optional[str] = None,
-    tags: Optional[str] = None,
+    username: str | None = None,
+    website: str | None = None,
+    description: str | None = None,
+    tags: str | None = None,
 ) -> None:
     """Update an existing password entry.
 
@@ -237,7 +236,7 @@ def generate_password(
     has_symbols: bool = True,
     has_digits: bool = True,
     has_uppercase: bool = True,
-) -> Optional[str]:
+) -> str | None:
     """Generate a random secure password.
 
     Does not require authentication. Generates password based on specified criteria.
@@ -309,7 +308,7 @@ def generate_password(
     return password
 
 
-def _prompt_save_details() -> Optional[dict]:
+def _prompt_save_details() -> dict | None:
     """Prompt user for password entry details."""
     print("\n--- Save Password ---")
 

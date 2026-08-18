@@ -10,13 +10,13 @@ test:
 lint:
 	uv run flake8 passwault tests
 
-# Format code using black
+# Format code using ruff
 format:
-	uv run black passwault tests
+	ruff format passwault tests
 
 # Check formatting without making changes
 check:
-	uv run black --check passwault tests
+	ruff format --check passwault tests
 
 # Remove __pycache__ and .pyc files
 clean:

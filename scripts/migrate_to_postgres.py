@@ -152,10 +152,14 @@ def migrate(
         migrated_passwords = 0
         for pwd in passwords:
             if verbose:
-                print(f"  Processing password: {pwd.resource_name} (user_id={pwd.user_id})")
+                print(
+                    f"  Processing password: {pwd.resource_name} (user_id={pwd.user_id})"
+                )
 
             if pwd.user_id not in user_id_map:
-                print(f"  Warning: Skipping orphaned password {pwd.resource_name} (user_id={pwd.user_id})")
+                print(
+                    f"  Warning: Skipping orphaned password {pwd.resource_name} (user_id={pwd.user_id})"
+                )
                 continue
 
             if dry_run:
@@ -179,7 +183,9 @@ def migrate(
             migrated_passwords += 1
 
             if verbose:
-                print(f"    Migrated password for user_id {pwd.user_id} -> {user_id_map[pwd.user_id]}")
+                print(
+                    f"    Migrated password for user_id {pwd.user_id} -> {user_id_map[pwd.user_id]}"
+                )
 
         if not dry_run:
             postgres_session.commit()

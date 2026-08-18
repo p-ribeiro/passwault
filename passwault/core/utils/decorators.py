@@ -14,6 +14,16 @@ from passwault.core.utils.session_manager import SessionManager
 def require_auth(func: Callable) -> Callable:
     """Decorator to require active authentication before executing function.
 
+    TODO: this decorator finds its SessionManager by scanning *args/**kwargs at
+    call time, which means every decorated function (and every one of its call
+    sites, including in cli.py and command functions that don't even use
+    session_manager, like register()) must keep passing a SessionManager just to
+    satisfy this check. That coupling has already caused real regressions during
+    refactors (session_manager silently dropped from Embedder.encode/decode and
+    from call sites). Consider replacing this with explicit dependency injection
+    (e.g. decorator factory bound to a session_manager instance, or an
+    auth-check call inside the CLI handlers) instead of argument sniffing.
+
     This decorator checks if:
     1. User has an active session (not expired)
     2. Encryption key is available in memory

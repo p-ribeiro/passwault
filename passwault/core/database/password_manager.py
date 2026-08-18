@@ -169,7 +169,7 @@ class PasswordRepository:
                 "updated_at": entry.updated_at,
             }
 
-        except (ResourceNotFoundError, EncryptionError):
+        except ResourceNotFoundError, EncryptionError:
             raise
 
         except Exception as e:
@@ -241,7 +241,7 @@ class PasswordRepository:
 
             return results
 
-        except (ResourceNotFoundError, EncryptionError):
+        except ResourceNotFoundError, EncryptionError:
             raise
 
         except Exception as e:

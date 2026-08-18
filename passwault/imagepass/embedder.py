@@ -37,7 +37,7 @@ class Embedder:
         b = "B" in self.image_handler.bands
         a = "A" in self.image_handler.bands
         l = "L" in self.image_handler.bands  # noqa: E741
-        
+
         bands_bitmask = (r << 0) | (g << 1) | (b << 2) | (a << 3) | (l << 4)
         return bands_bitmask
 
@@ -51,9 +51,7 @@ class Embedder:
         if header_crc_calc != header_crc_stored:
             raise ValueError("Header CRC mismatch!")
 
-        header_struct = Header(*struct.unpack(
-            ">IBIB10s", header_without_crc
-        ))
+        header_struct = Header(*struct.unpack(">IBIB10s", header_without_crc))
 
         return header_struct
 
@@ -210,7 +208,7 @@ class Embedder:
         return decoded_message, bytes(message_crc)
 
     @require_auth
-    def decode(self, session_manager: SessionManager) -> Optional[str]:
+    def decode(self, session_manager: SessionManager) -> str | None:
         for band in self.image_handler.bands.keys():
             band_values = self.image_handler.get_band_values(band)
 

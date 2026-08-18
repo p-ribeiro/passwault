@@ -42,6 +42,7 @@ def handle_imagepass(args, session_manager):
         Result of encode/decode operation
     """
     embedder = Embedder(args.image_path)
+
     if args.option == "encode":
         result = embedder.encode(message=args.password, session_manager=session_manager)
         Logger.info(f"Password encoded to: {result}")
@@ -65,7 +66,7 @@ def handle_backup_create(args):
         Logger.error(f"Backup failed: {e}")
 
 
-def handle_backup_list(args):
+def handle_backup_list():
     """Handle backup list command."""
     service = BackupService()
     backups = service.list_backups()
@@ -456,7 +457,7 @@ def cli(args=None, session_manager=None):
         list_backup_parser = backup_subparsers.add_parser(
             "list", help="List available backups"
         )
-        list_backup_parser.set_defaults(func=lambda args: handle_backup_list(args))
+        list_backup_parser.set_defaults(func=lambda args: handle_backup_list())
 
         # Restore backup subcommand
         restore_backup_parser = backup_subparsers.add_parser(

@@ -4,8 +4,6 @@ This module implements the authentication flow for the Passwault password manage
 including user registration, login with master password, and secure logout.
 """
 
-from typing import Optional
-
 from passwault.core.database.password_manager import PasswordRepository
 from passwault.core.database.user_repository import UserRepository
 from passwault.core.services.crypto_service import CryptoService
@@ -20,8 +18,8 @@ from passwault.core.database.models import User
 
 def register(
     username: str,
-    password: Optional[str],
-    email: Optional[str],
+    password: str | None,
+    email: str | None,
     session_manager: SessionManager,
 ) -> None:
     """Register a new user account.
@@ -33,7 +31,9 @@ def register(
         username: Desired username (must be unique)
         password: Master password (if None, will prompt)
         email: Optional email address
-        session_manager: Session manager instance (not used during registration)
+        session_manager: Session manager instance (not used during registration; kept
+            only so the CLI call site matches other auth commands - see TODO on
+            @require_auth in decorators.py about this argument-sniffing pattern)
 
     Returns:
         None (prints success/error messages)
@@ -81,9 +81,7 @@ def register(
         return
 
 
-def login(
-    username: str, password: Optional[str], session_manager: SessionManager
-) -> None:
+def login(username: str, password: str | None, session_manager: SessionManager) -> None:
     """Authenticate user and create session.
 
     Verifies credentials and creates an authenticated session with encryption
@@ -162,8 +160,8 @@ def logout(session_manager: SessionManager) -> None:
 
 @require_auth
 def change_master_password(
-    old_password: Optional[str],
-    new_password: Optional[str],
+    old_password: str | None,
+    new_password: str | None,
     session_manager: SessionManager,
 ) -> None:
     """Change the user's master password and re-encrypt all passwords.
