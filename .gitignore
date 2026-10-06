@@ -227,5 +227,6 @@ CLAUDE.md
 
 files/
 
-# Committed PyInstaller spec for the portable build
+# Committed portable build inputs (PyInstaller spec, on-stick README)
 !scripts/portable/passwault.spec
+!scripts/portable/README.txt
