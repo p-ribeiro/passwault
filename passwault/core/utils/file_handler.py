@@ -1,12 +1,20 @@
 import argparse
 import csv
 import json
+import os
 from pathlib import Path
-from typing import Tuple
 
 ALLOWED_EXT = [".csv", ".json"]
 
 VALID_IMAGE_EXTENSIONS = [".jpg", ".png", ".gif", ".jpeg", ".tiff", ".bmp"]
+
+
+def write_private_file(file_path: Path, data: bytes) -> None:
+    """Write bytes to a file readable only by the current user (0600)."""
+    fd = os.open(file_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+    os.chmod(file_path, 0o600)
 
 
 def valid_image_file(file: str) -> str:
@@ -83,7 +91,7 @@ def _read_json(file_path: Path):
         raise ValueError(f"Error with '{file_path.name}': {str(e)}")
 
 
-def read_file(file: str) -> Tuple[Tuple[str, str]] | None:
+def read_file(file: str) -> tuple[tuple[str, str]] | None:
     file_path = Path(file)
     file_suffix = file_path.suffix
 

@@ -9,6 +9,7 @@ import pytest
 
 from passwault.core.config import Config, DatabaseType
 from passwault.core.services.backup_service import BackupService
+from passwault.core.services.vault_service import KdfParams, VaultService
 
 
 @pytest.fixture
@@ -308,3 +309,76 @@ class TestCleanupBackups:
         assert removed == 1
         assert not old_backup.exists()
         assert new_backup.exists()
+
+
+class TestPortableVaultBackups:
+    """Portable mode backs up the encrypted vault file, never plaintext."""
+
+    @pytest.fixture
+    def vault(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("PASSWAULT_HOME", str(tmp_path / "stick"))
+        monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
+        vault = VaultService(kdf_params=KdfParams(memory_kib=64, iterations=1, lanes=1))
+        vault.init("vault-pw")
+        return vault
+
+    def test_create_backup_copies_vault_file(self, vault):
+        service = BackupService()
+
+        backup = service.create_backup()
+
+        assert backup.name.endswith(".pwv")
+        assert backup.parent == Config.get_backup_dir()
+        assert backup.read_bytes() == vault.vault_path.read_bytes()
+        assert backup in service.list_backups()
+
+    def test_create_backup_seals_pending_changes(self, vault):
+        vault.db_path.write_bytes(vault.db_path.read_bytes() + b"\0")
+        assert vault.is_dirty()
+
+        BackupService().create_backup()
+
+        assert not vault.is_dirty()
+
+    def test_restore_requires_closed_vault(self, vault):
+        service = BackupService()
+        backup = service.create_backup()
+
+        with pytest.raises(RuntimeError, match="Close the vault"):
+            service.restore_backup(backup)
+
+    def test_restore_replaces_vault_file(self, vault):
+        service = BackupService()
+        backup = service.create_backup()
+        vault.close()
+        vault.vault_path.write_bytes(b"newer content")
+
+        service.restore_backup(backup)
+
+        assert vault.vault_path.read_bytes() == backup.read_bytes()
+        assert vault.backup_path.read_bytes() == b"newer content"
+
+    def test_restore_rejects_non_vault_pwv(self, vault, tmp_path):
+        vault.close()
+        fake = tmp_path / "passwault_20260101_000000.pwv"
+        fake.write_bytes(b"not a vault")
+
+        with pytest.raises(ValueError, match="Not a passwault vault file"):
+            BackupService().restore_backup(fake)
+
+    def test_restore_rejects_db_backup_in_portable_mode(self, vault, tmp_path):
+        vault.close()
+        db_backup = tmp_path / "passwault_20260101_000000.db.gz"
+        db_backup.write_bytes(b"x")
+
+        with pytest.raises(ValueError, match="vault init --import-db"):
+            BackupService().restore_backup(db_backup)
+
+
+def test_restore_pwv_outside_portable_mode(mock_sqlite_config, temp_backup_dir):
+    """Vault backups are refused when not running in portable mode."""
+    pwv = temp_backup_dir / "passwault_20260101_000000.pwv"
+    pwv.write_bytes(b"x")
+
+    with pytest.raises(ValueError, match="only be restored in portable mode"):
+        BackupService().restore_backup(pwv)

@@ -44,3 +44,9 @@ class ClipboardError(PasswaultError):
     """Raised when clipboard operations fail."""
 
     pass
+
+
+class VaultError(PasswaultError):
+    """Raised when portable vault operations fail."""
+
+    pass

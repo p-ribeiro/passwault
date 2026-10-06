@@ -8,6 +8,7 @@ Tests session management including:
 - Security measures
 """
 
+import stat
 import tempfile
 import json
 from datetime import datetime, timedelta
@@ -532,6 +533,18 @@ class TestSessionSecurity:
 
         # Should not contain plain text username
         assert b"testuser" not in raw_content
+
+    def test_session_files_are_private(self, session_manager):
+        """Session and key files are readable only by the owner (0600)."""
+        session_manager.create_session(
+            {"user_id": 1, "username": "testuser", "encryption_key": b"0" * 32}
+        )
+
+        for file_path in (
+            session_manager.session_file_path,
+            session_manager.key_file_path,
+        ):
+            assert stat.S_IMODE(file_path.stat().st_mode) == 0o600
 
     def test_session_file_contains_encrypted_key(self, session_manager):
         """Test that session file contains encryption key (encrypted).

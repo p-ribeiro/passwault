@@ -24,7 +24,16 @@ from passwault.core.commands.password import (
     add_password,
     update_password,
 )
+from passwault.core.commands.vault import (
+    change_vault_password,
+    close_vault,
+    init_vault,
+    open_vault,
+    vault_status,
+)
+from passwault.core.config import Config
 from passwault.core.services.backup_service import BackupService
+from passwault.core.services.vault_service import VaultService
 from passwault.core.utils.file_handler import valid_image_file
 from passwault.core.utils.logger import Logger
 from passwault.core.utils.session_manager import SessionManager
@@ -41,7 +50,13 @@ def handle_imagepass(args, session_manager):
     Returns:
         Result of encode/decode operation
     """
-    embedder = Embedder(args.image_path)
+    # The default output dir is relative to the package, which a frozen build deletes on exit
+    output_dir = None
+    if Config.is_portable():
+        output_dir = Config.get_data_dir() / "results"
+        output_dir.mkdir(exist_ok=True)
+
+    embedder = Embedder(args.image_path, output_dir=output_dir)
 
     if args.option == "encode":
         result = embedder.encode(message=args.password, session_manager=session_manager)
@@ -148,6 +163,22 @@ def handle_generate(args, session_manager):
             has_digits=not args.no_digits,
             has_uppercase=not args.no_uppercase,
         )
+
+
+def _needs_vault(args) -> bool:
+    """Whether a parsed command reads or writes the database."""
+    if args.command in ("add", "get", "update", "delete"):
+        return True
+    if args.command == "auth":
+        return args.auth_command not in (None, "logout")
+    if args.command == "generate":
+        return args.save
+    return False
+
+
+def _vault_locked(args) -> bool:
+    """In portable mode, database commands need an open vault."""
+    return Config.is_portable() and _needs_vault(args) and not VaultService().is_open()
 
 
 def cli(args=None, session_manager=None):
@@ -492,8 +523,89 @@ def cli(args=None, session_manager=None):
             func=lambda args: handle_backup_cleanup(args)
         )
 
+        # ====================================
+        # PORTABLE VAULT
+        # ====================================
+        vault_parser = subparsers.add_parser(
+            "vault", help="Portable mode: encrypted vault on the USB drive"
+        )
+        vault_subparsers = vault_parser.add_subparsers(
+            dest="vault_command", help="Vault operations"
+        )
+
+        vault_init_parser = vault_subparsers.add_parser(
+            "init", help="Create the encrypted vault on the drive"
+        )
+        vault_init_parser.add_argument(
+            "-p",
+            "--password",
+            type=str,
+            help="Vault password (will prompt if not provided)",
+        )
+        vault_init_parser.add_argument(
+            "--import-db",
+            type=str,
+            help="Start from an existing SQLite database (.db or .db.gz backup)",
+        )
+        vault_init_parser.set_defaults(
+            func=lambda args: init_vault(args.password, args.import_db)
+        )
+
+        vault_open_parser = vault_subparsers.add_parser(
+            "open", help="Unlock the vault on this machine"
+        )
+        vault_open_parser.add_argument(
+            "-p",
+            "--password",
+            type=str,
+            help="Vault password (will prompt if not provided)",
+        )
+        vault_open_parser.set_defaults(func=lambda args: open_vault(args.password))
+
+        vault_close_parser = vault_subparsers.add_parser(
+            "close", help="Save, wipe the host copy and log out"
+        )
+        vault_close_parser.add_argument(
+            "--discard",
+            action="store_true",
+            help="Drop the host copy without saving (e.g. the drive is gone)",
+        )
+        vault_close_parser.set_defaults(
+            func=lambda args: close_vault(session_manager, args.discard)
+        )
+
+        vault_status_parser = vault_subparsers.add_parser(
+            "status", help="Show vault location and state"
+        )
+        vault_status_parser.set_defaults(func=lambda args: vault_status())
+
+        vault_change_parser = vault_subparsers.add_parser(
+            "change-password", help="Change the vault password"
+        )
+        vault_change_parser.add_argument(
+            "-o",
+            "--old-password",
+            type=str,
+            help="Current vault password (will prompt if not provided)",
+        )
+        vault_change_parser.add_argument(
+            "-n",
+            "--new-password",
+            type=str,
+            help="New vault password (will prompt if not provided)",
+        )
+        vault_change_parser.set_defaults(
+            func=lambda args: change_vault_password(
+                args.old_password, args.new_password
+            )
+        )
+
         # Parse arguments
         parsed_args = parser.parse_args(args)
+
+        if _vault_locked(parsed_args):
+            Logger.error("Vault is locked. Run: passwault vault open")
+            return
 
         # Execute command if func is set
         if hasattr(parsed_args, "func"):

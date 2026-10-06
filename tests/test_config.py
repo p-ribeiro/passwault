@@ -1,5 +1,7 @@
 """Tests for configuration module."""
 
+import stat
+import sys
 import tempfile
 from pathlib import Path
 
@@ -105,3 +107,63 @@ class TestConfig:
 
         monkeypatch.setenv("DATABASE_URL", "postgresql://localhost/test")
         assert Config.is_sqlite() is False
+
+
+class TestPortableConfig:
+    """Portable (USB) mode path resolution."""
+
+    @pytest.fixture
+    def portable(self, monkeypatch, tmp_path):
+        home = tmp_path / "stick" / "passwault"
+        home.mkdir(parents=True)
+        runtime = tmp_path / "run"
+        runtime.mkdir()
+        monkeypatch.setenv("PASSWAULT_HOME", str(home))
+        monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))
+        return home, runtime
+
+    def test_not_portable_by_default(self):
+        assert Config.get_portable_home() is None
+        assert Config.is_portable() is False
+
+    def test_portable_home_from_env(self, portable):
+        home, _ = portable
+        assert Config.get_portable_home() == home.resolve()
+        assert Config.is_portable() is True
+
+    def test_portable_home_from_frozen_marker(self, monkeypatch, tmp_path):
+        (tmp_path / "bin").mkdir()
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "executable", str(tmp_path / "bin" / "passwault"))
+
+        assert Config.get_portable_home() is None
+
+        (tmp_path / Config.PORTABLE_MARKER).touch()
+        assert Config.get_portable_home() == tmp_path.resolve()
+
+    def test_portable_paths(self, portable, monkeypatch):
+        home, runtime = portable
+        monkeypatch.setenv("DATABASE_URL", "postgresql://host/db")
+        monkeypatch.setenv("PASSWAULT_BACKUP_DIR", str(runtime / "elsewhere"))
+
+        state_dir = Config.get_state_dir()
+
+        assert Config.get_data_dir() == home.resolve() / "data"
+        assert state_dir.parent == runtime
+        assert state_dir.name.startswith("passwault-")
+        assert stat.S_IMODE(state_dir.stat().st_mode) == 0o700
+        assert Config.get_database_url() == f"sqlite:///{state_dir / 'passwault.db'}"
+        assert Config.get_backup_dir() == home.resolve() / "backups"
+
+    def test_state_dir_is_stable_per_home(self, portable):
+        assert Config.get_state_dir() == Config.get_state_dir()
+
+    def test_volatile_root_fallback(self, monkeypatch):
+        monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)
+        assert Config._get_volatile_root() in (
+            Path("/dev/shm"),
+            Path(tempfile.gettempdir()),
+        )
+
+    def test_installed_state_dir_is_data_dir(self):
+        assert Config.get_state_dir() == Config.get_data_dir()

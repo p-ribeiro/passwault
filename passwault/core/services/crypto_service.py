@@ -8,12 +8,12 @@ password storage and user authentication, including:
 """
 
 import os
-from typing import Tuple
 
 import bcrypt
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
@@ -111,7 +111,7 @@ class CryptoService:
         return kdf.derive(master_password.encode("utf-8"))
 
     @staticmethod
-    def encrypt_password(plaintext: str, encryption_key: bytes) -> Tuple[bytes, bytes]:
+    def encrypt_password(plaintext: str, encryption_key: bytes) -> tuple[bytes, bytes]:
         """Encrypt a password using AES-256-GCM.
 
         AES-GCM provides authenticated encryption, ensuring both
@@ -164,3 +164,42 @@ class CryptoService:
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
 
         return plaintext.decode("utf-8")
+
+    @staticmethod
+    def derive_key_argon2id(
+        password: str, salt: bytes, memory_kib: int, iterations: int, lanes: int
+    ) -> bytes:
+        """Derive a 32-byte key with Argon2id (memory-hard, used for vault files)."""
+        kdf = Argon2id(
+            salt=salt,
+            length=32,
+            iterations=iterations,
+            lanes=lanes,
+            memory_cost=memory_kib,
+        )
+        return kdf.derive(password.encode("utf-8"))
+
+    @staticmethod
+    def encrypt_bytes(data: bytes, key: bytes, aad: bytes) -> tuple[bytes, bytes]:
+        """Encrypt raw bytes with AES-256-GCM, authenticating `aad`.
+
+        Returns:
+            Tuple of (ciphertext, nonce)
+        """
+        if len(key) != 32:
+            raise ValueError("Encryption key must be exactly 32 bytes (256 bits)")
+
+        nonce = os.urandom(CryptoService.DEFAULT_NONCE_LENGTH)
+        return AESGCM(key).encrypt(nonce, data, aad), nonce
+
+    @staticmethod
+    def decrypt_bytes(ciphertext: bytes, nonce: bytes, key: bytes, aad: bytes) -> bytes:
+        """Decrypt raw bytes with AES-256-GCM.
+
+        Raises:
+            cryptography.exceptions.InvalidTag: On wrong key or tampered data/aad
+        """
+        if len(key) != 32:
+            raise ValueError("Encryption key must be exactly 32 bytes (256 bits)")
+
+        return AESGCM(key).decrypt(nonce, ciphertext, aad)

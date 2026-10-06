@@ -7,13 +7,15 @@ This module handles user sessions, including:
 - Secure cleanup on logout
 """
 
+import base64
 import json
 from cryptography.fernet import Fernet
 from datetime import datetime, timedelta
 from functools import wraps
 from os import path, remove
-from typing import Optional, Dict, Any
-from passwault.core.utils.data_dir import get_data_dir
+from typing import Any
+from passwault.core.config import Config
+from passwault.core.utils.file_handler import write_private_file
 from passwault.core.utils.logger import Logger
 
 
@@ -74,13 +76,13 @@ class SessionManager:
         Args:
             session_file: Name of session file (default: .session)
         """
-        self.data_dir = get_data_dir()
+        self.data_dir = Config.get_state_dir()
         self.session_file_path = self.data_dir / session_file
         self.key_file_path = self.data_dir / ".enckey"
 
         # In-memory encryption key cache
         # Will be populated from session file if session exists
-        self._encryption_key_cache: Optional[bytes] = None
+        self._encryption_key_cache: bytes | None = None
 
         # Load session and restore encryption key if present
         self.session = self._load_session()
@@ -88,16 +90,14 @@ class SessionManager:
     def _create_secret_key(self):
         """Create Fernet encryption key for session file encryption."""
         if not path.isfile(self.key_file_path):
-            key = Fernet.generate_key()
-            with open(self.key_file_path, "wb") as f:
-                f.write(key)
+            write_private_file(self.key_file_path, Fernet.generate_key())
 
     def _get_secret_key(self) -> bytes:
         """Retrieve Fernet encryption key for session file encryption."""
         with open(self.key_file_path, "rb") as f:
             return f.read()
 
-    def _load_session(self) -> Optional[Dict[str, Any]]:
+    def _load_session(self) -> dict[str, Any] | None:
         """Load and decrypt session from disk.
 
         Also restores the encryption key to memory if present in session file.
@@ -121,8 +121,6 @@ class SessionManager:
 
             # Restore encryption key to memory if present
             if "encryption_key" in session_data:
-                import base64
-
                 self._encryption_key_cache = base64.b64decode(
                     session_data["encryption_key"]
                 )
@@ -160,8 +158,6 @@ class SessionManager:
         session_data = self.session.copy()
         if self._encryption_key_cache is not None:
             # Store encryption key as base64 for JSON serialization
-            import base64
-
             session_data["encryption_key"] = base64.b64encode(
                 self._encryption_key_cache
             ).decode("utf-8")
@@ -169,8 +165,7 @@ class SessionManager:
         # Encrypt session (including encryption key)
         encrypted_session = fernet.encrypt(json.dumps(session_data).encode())
 
-        with open(self.session_file_path, "wb") as sf:
-            sf.write(encrypted_session)
+        write_private_file(self.session_file_path, encrypted_session)
 
     def is_logged_in(self) -> bool:
         """Check if user has an active session.
@@ -186,7 +181,7 @@ class SessionManager:
 
         return self.session is not None
 
-    def create_session(self, user_data: Dict[str, Any]) -> None:
+    def create_session(self, user_data: dict[str, Any]) -> None:
         """Create a new user session with encryption key caching.
 
         Extracts and caches the encryption key from user_data, then saves
@@ -217,7 +212,7 @@ class SessionManager:
 
         self._save_session()
 
-    def get_encryption_key(self) -> Optional[bytes]:
+    def get_encryption_key(self) -> bytes | None:
         """Retrieve cached encryption key from memory.
 
         Returns:
@@ -233,7 +228,7 @@ class SessionManager:
 
         return self._encryption_key_cache
 
-    def get_user_id(self) -> Optional[int]:
+    def get_user_id(self) -> int | None:
         """Get current user's ID from session.
 
         Returns:
@@ -243,7 +238,7 @@ class SessionManager:
             return None
         return self.session.get("user_id")
 
-    def get_username(self) -> Optional[str]:
+    def get_username(self) -> str | None:
         """Get current user's username from session.
 
         Returns:
@@ -275,7 +270,7 @@ class SessionManager:
         if path.exists(self.key_file_path):
             remove(self.key_file_path)
 
-    def get_session(self) -> Optional[Dict[str, Any]]:
+    def get_session(self) -> dict[str, Any] | None:
         """Get current session data.
 
         Returns:

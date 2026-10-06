@@ -137,6 +137,67 @@ If no `DATABASE_URL` is set, Passwault automatically uses SQLite:
 passwault auth register -u yourname  # Data stored in ~/.passwault/passwault.db
 ```
 
+## 💾 Portable Mode (USB Drive)
+
+Passwault can live on a thumb drive and run from it on any x86_64 Linux or WSL2 machine (glibc 2.28 or newer: Debian 10+, Ubuntu 20.04+, RHEL/Rocky 8+). Nothing is installed on the host and no Python is needed there.
+
+On the drive the whole database is a single encrypted file (`vault.pwv`, AES-256-GCM with an Argon2id-derived key), so a lost drive reveals neither your passwords nor your entry names, usernames, URLs or tags.
+
+### Two Passwords
+
+- The **vault password** unlocks the database file on the drive (`passwault vault open`).
+- Your **master password** unlocks your entries inside it, exactly as in the installed version (`passwault auth login`).
+
+### Build the Bundle
+
+```bash
+uv self update                 # needs a uv that ships a managed CPython 3.14
+make portable DEST=/mnt/e      # WSL: the drive letter; Linux: e.g. /media/$USER/STICK
+```
+
+This builds a one-file binary with PyInstaller and writes:
+
+```
+<DEST>/passwault/
+├── passwault                   # launcher: sh /path/to/passwault/passwault <command>
+├── README.txt                  # quick start
+├── bin/passwault-linux-x86_64  # the program
+├── data/vault.pwv              # your encrypted vault (+ vault.pwv.bak, previous save)
+└── backups/                    # `backup create` output, still encrypted
+```
+
+Re-running `make portable` on an existing bundle updates the program only; `data/` and `backups/` are never touched. The launcher also works when the drive's filesystem hides the exec bit (FAT `showexec`, `noexec` mounts) by running a private copy from host memory.
+
+### Use It
+
+```bash
+alias passwault='sh /mnt/e/passwault/passwault'
+
+# First time
+passwault vault init                           # create the vault (asks for a vault password)
+passwault auth register -u yourname
+# ...or bring your existing installed vault along:
+passwault vault init --import-db ~/.local/share/passwault/passwault.db
+
+# Every time
+passwault vault open
+passwault auth login -u yourname
+passwault get -n github
+passwault vault close                          # save, wipe the host copy, log out; then eject
+```
+
+`--import-db` also accepts `passwault_*.db.gz` backups. Delete plaintext `.db` copies from the drive once imported: they expose entry names and usernames.
+
+### How It Works
+
+- `vault open` decrypts the vault into a private host directory in RAM (`$XDG_RUNTIME_DIR`, else `/dev/shm`), mode 0700. Sessions are kept there too, never on the drive.
+- After every command, changes are sealed back onto the drive (atomic replace, previous version kept as `vault.pwv.bak`).
+- The vault closes itself after 30 minutes without use (checked on the next command). If you unplug without closing, the decrypted copy stays in host RAM until the next run on that host, `vault close --discard`, or a reboot.
+- If the drive was used on another machine without closing here first, local unsaved changes go to `data/vault.pwv.conflict-<timestamp>` instead of overwriting the newer vault.
+- Portable mode ignores host configuration (`DATABASE_URL`, `~/.config/passwault/.env`, `PASSWAULT_BACKUP_DIR`). It is enabled by the launcher via `PASSWAULT_HOME`, or detected by the binary from the `.passwault-portable` marker.
+- `backup create` copies the encrypted vault file, so `backup create -o <dir>` is safe for keeping a copy off the drive; `backup restore <file>.pwv` needs the vault closed.
+- `vault status`, `vault change-password` and `vault close --discard` round out the commands.
+
 ## 📚 Complete Command Reference
 
 ### Authentication Commands
@@ -327,13 +388,16 @@ passwault/
 ├── core/
 │   ├── commands/           # CLI command implementations
 │   │   ├── authenticator.py    # Register, login, logout, change password
-│   │   └── password.py         # Add, get, update, delete, generate
+│   │   ├── password.py         # Add, get, update, delete, generate
+│   │   └── vault.py            # Portable vault init/open/close/status
 │   ├── database/           # Data layer
 │   │   ├── models.py           # SQLAlchemy models (User, PasswordManager)
 │   │   ├── user_repository.py  # User CRUD operations
 │   │   └── password_manager.py # Password CRUD operations
 │   ├── services/           # Business logic
-│   │   └── crypto_service.py   # Cryptography operations
+│   │   ├── crypto_service.py   # Cryptography operations
+│   │   ├── backup_service.py   # Backup and restore
+│   │   └── vault_service.py    # Encrypted vault file (portable mode)
 │   ├── utils/              # Utilities
 │   │   ├── decorators.py       # @require_auth decorator
 │   │   ├── session_manager.py  # Session handling

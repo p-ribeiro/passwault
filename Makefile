@@ -1,6 +1,6 @@
 # Makefile for passwault project
 
-.PHONY: test lint format check clean
+.PHONY: test lint format check clean portable
 
 # Run tests wiht pytest
 test:
@@ -17,6 +17,10 @@ format:
 # Check formatting without making changes
 check:
 	ruff format --check passwault tests
+
+# Build the portable USB bundle (e.g. make portable DEST=/mnt/e)
+portable:
+	scripts/build_portable.sh $(DEST)
 
 # Remove __pycache__ and .pyc files
 clean:

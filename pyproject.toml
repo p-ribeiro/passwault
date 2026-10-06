@@ -42,3 +42,6 @@ dev = [
     "pytest-cov>=6.2.1",
     "pytest-mock>=3.14.1",
 ]
+portable = [
+    "pyinstaller>=6.16",
+]

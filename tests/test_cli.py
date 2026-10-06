@@ -4,6 +4,7 @@ Tests command parsing, argument validation, and command routing
 for all Passwault CLI commands.
 """
 
+import argparse
 import io
 import tempfile
 from pathlib import Path
@@ -11,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from passwault.core.cli import cli
+from passwault.core.cli import cli, handle_imagepass
 from passwault.core.utils.session_manager import SessionManager
 
 
@@ -437,3 +438,83 @@ class TestCLIIntegration:
             test_args = ["auth", "login", "-u", "test"]
             # Should not raise exception
             cli(test_args, session_manager)
+
+
+class TestPortableVaultGate:
+    """In portable mode, database commands require an open vault."""
+
+    @pytest.fixture
+    def portable(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("PASSWAULT_HOME", str(tmp_path / "stick"))
+        monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
+
+    @pytest.mark.parametrize(
+        "args, target",
+        [
+            (["get", "-a"], "get_password"),
+            (["delete", "-n", "x"], "delete_password"),
+            (["auth", "login", "-u", "a"], "login"),
+            (["generate", "--save"], "generate_and_save"),
+        ],
+    )
+    def test_locked_vault_blocks_db_commands(
+        self, portable, session_manager, args, target
+    ):
+        with patch(f"passwault.core.cli.{target}") as mock_cmd:
+            cli(args, session_manager)
+        mock_cmd.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "args, target",
+        [
+            (["generate"], "generate_password"),
+            (["auth", "logout"], "logout"),
+            (["vault", "status"], "vault_status"),
+            (["vault", "open", "-p", "x"], "open_vault"),
+        ],
+    )
+    def test_locked_vault_allows_other_commands(
+        self, portable, session_manager, args, target
+    ):
+        with patch(f"passwault.core.cli.{target}") as mock_cmd:
+            cli(args, session_manager)
+        mock_cmd.assert_called_once()
+
+    def test_open_vault_allows_db_commands(self, portable, session_manager):
+        with (
+            patch("passwault.core.cli.VaultService.is_open", return_value=True),
+            patch("passwault.core.cli.get_password") as mock_get,
+        ):
+            cli(["get", "-a"], session_manager)
+        mock_get.assert_called_once()
+
+    @patch("passwault.core.cli.close_vault")
+    def test_vault_close_passes_discard(self, mock_close, portable, session_manager):
+        cli(["vault", "close", "--discard"], session_manager)
+        mock_close.assert_called_once_with(session_manager, True)
+
+
+class TestPortableImagepassOutput:
+    """Portable builds must not write encoded images inside the frozen package."""
+
+    def test_portable_output_goes_to_stick(self, monkeypatch, tmp_path):
+        home = tmp_path / "stick"
+        monkeypatch.setenv("PASSWAULT_HOME", str(home))
+        args = argparse.Namespace(image_path="img.png", option="decode")
+
+        with patch("passwault.core.cli.Embedder") as mock_embedder:
+            mock_embedder.return_value.decode.return_value = "x"
+            handle_imagepass(args, session_manager=None)
+
+        output_dir = mock_embedder.call_args.kwargs["output_dir"]
+        assert output_dir == home.resolve() / "data" / "results"
+        assert output_dir.is_dir()
+
+    def test_installed_output_uses_default(self):
+        args = argparse.Namespace(image_path="img.png", option="decode")
+
+        with patch("passwault.core.cli.Embedder") as mock_embedder:
+            mock_embedder.return_value.decode.return_value = "x"
+            handle_imagepass(args, session_manager=None)
+
+        assert mock_embedder.call_args.kwargs["output_dir"] is None

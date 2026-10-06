@@ -1,6 +1,7 @@
 """Backup service for database backup and restore operations.
 
-Supports both SQLite (file copy) and PostgreSQL (pg_dump) backups.
+Supports SQLite (file copy), PostgreSQL (pg_dump) and, in portable mode,
+copies of the encrypted vault file.
 """
 
 import gzip
@@ -9,16 +10,16 @@ import shutil
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
 from urllib.parse import urlparse
 
 from passwault.core.config import Config, DatabaseType
+from passwault.core.services.vault_service import VaultService
 
 
 class BackupService:
     """Service for database backup operations."""
 
-    def __init__(self, backup_dir: Optional[Path] = None):
+    def __init__(self, backup_dir: Path | None = None):
         """Initialize backup service.
 
         Args:
@@ -27,6 +28,7 @@ class BackupService:
         self.backup_dir = backup_dir or Config.get_backup_dir()
         self.database_type = Config.get_database_type()
         self.database_url = Config.get_database_url()
+        self.portable = Config.is_portable()
 
     def create_backup(self, compress: bool = True) -> Path:
         """Create a database backup.
@@ -42,6 +44,8 @@ class BackupService:
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+        if self.portable:
+            return self._backup_vault(timestamp)
         if self.database_type == DatabaseType.SQLITE:
             return self._backup_sqlite(timestamp, compress)
         else:
@@ -72,6 +76,21 @@ class BackupService:
             backup_file = self.backup_dir / f"passwault_{timestamp}.db"
             shutil.copy2(db_path, backup_file)
 
+        return backup_file
+
+    def _backup_vault(self, timestamp: str) -> Path:
+        """Copy the encrypted vault file (portable mode); safe to store anywhere.
+
+        Not compressed: ciphertext doesn't shrink.
+        """
+        vault = VaultService()
+        if vault.is_open():
+            vault.seal_if_dirty()
+        if not vault.exists():
+            raise RuntimeError(f"Vault file not found: {vault.vault_path}")
+
+        backup_file = self.backup_dir / f"passwault_{timestamp}.pwv"
+        shutil.copyfile(vault.vault_path, backup_file)
         return backup_file
 
     def _backup_postgresql(self, timestamp: str, compress: bool) -> Path:
@@ -144,7 +163,7 @@ class BackupService:
 
         return backup_file
 
-    def list_backups(self) -> List[Path]:
+    def list_backups(self) -> list[Path]:
         """List all available backups.
 
         Returns:
@@ -155,6 +174,7 @@ class BackupService:
             "passwault_*.db.gz",
             "passwault_*.sql",
             "passwault_*.sql.gz",
+            "passwault_*.pwv",
         ]
 
         backups = []
@@ -178,6 +198,19 @@ class BackupService:
 
         # Determine backup type from filename
         name = backup_path.name
+        if name.endswith(".pwv"):
+            if not self.portable:
+                raise ValueError(
+                    "Vault backups (.pwv) can only be restored in portable mode"
+                )
+            self._restore_vault(backup_path)
+            return
+        if self.portable:
+            raise ValueError(
+                "Portable mode restores .pwv vault backups only. To start from a "
+                "database backup use: passwault vault init --import-db <file>"
+            )
+
         if ".db.gz" in name or name.endswith(".db"):
             backup_type = DatabaseType.SQLITE
         elif ".sql.gz" in name or name.endswith(".sql"):
@@ -195,6 +228,25 @@ class BackupService:
             self._restore_sqlite(backup_path)
         else:
             self._restore_postgresql(backup_path)
+
+    def _restore_vault(self, backup_path: Path) -> None:
+        """Replace the vault file on the drive with a .pwv backup."""
+        if not VaultService.is_vault_file(backup_path):
+            raise ValueError(f"Not a passwault vault file: {backup_path}")
+
+        vault = VaultService()
+        if vault.is_open():
+            raise RuntimeError(
+                "Close the vault before restoring: passwault vault close"
+            )
+
+        vault.vault_path.parent.mkdir(parents=True, exist_ok=True)
+        if vault.exists():
+            shutil.copyfile(vault.vault_path, vault.backup_path)
+
+        tmp = vault.vault_path.with_name(vault.vault_path.name + ".tmp")
+        shutil.copyfile(backup_path, tmp)
+        os.replace(tmp, vault.vault_path)
 
     def _restore_sqlite(self, backup_path: Path) -> None:
         """Restore SQLite database from backup."""
